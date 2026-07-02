@@ -1,87 +1,96 @@
--- StoryGroup 초기 스키마
--- 범위: PRD 18번 섹션 MVP (회원가입/로그인/그룹/게시글/댓글/좋아요/채팅/파일첨부/화상회의)
--- 제외: 일정/캘린더/투표/설문/Bot 등 향후 기능(19번 섹션)
-
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- StoryGroup 스키마 v2
+-- 레거시 PHP(Slim) 백엔드(../hong227, DbHandler.php/index.php)의 테이블/컬럼 구조를
+-- 최대한 그대로 유지하고(정수 PK, users/groups/posts/replys/album/... 명명 규칙),
+-- PRD MVP(18번 섹션)에 필요하지만 레거시에 없던 기능만 추가로 얹은 버전.
+--
+-- 레거시와 다르게 간 지점 (의도적 결정, "최대한 유사하게" 원칙의 예외):
+--   1) users.api_key(만료 없는 고정 토큰) 컬럼 제거.
+--      PRD 15번 보안 섹션이 JWT + Refresh Token을 명시하는데, 평문 고정 api_key는
+--      한번 유출되면 영구 탈취되는 구식 패턴이라 정면으로 충돌함. 대신 refresh_tokens
+--      테이블을 추가해 JWT 리프레시 흐름을 지원.
+--   2) password_hash 포맷은 그대로 호환됨 — PassHash.php가 bcrypt($2a$10$...)를 쓰므로
+--      Spring Security BCryptPasswordEncoder와 100% 호환. 기존 유저 비번 재설정 불필요.
 
 -- =========================================================
--- 회원
+-- 회원 (레거시 users 테이블 기준)
 -- =========================================================
 CREATE TABLE users (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email               VARCHAR(255) NOT NULL UNIQUE,
-    password_hash       VARCHAR(255),               -- OAuth 전용 계정은 NULL
-    nickname            VARCHAR(50) NOT NULL,
-    profile_image_url   TEXT,
-    bio                 VARCHAR(300),
-    status_message      VARCHAR(100),
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at          TIMESTAMPTZ
+    id                      BIGSERIAL PRIMARY KEY,
+    name                    VARCHAR(50) NOT NULL,
+    email                   VARCHAR(255) NOT NULL UNIQUE,
+    password_hash           VARCHAR(255),              -- OAuth 전용 계정은 NULL, bcrypt $2a$10$... 포맷
+    status                  INT NOT NULL DEFAULT 0,     -- 레거시 유지: 프로필 상태 플래그
+    profile_img             VARCHAR(255),
+    fcm_registration_id     VARCHAR(255),
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at              TIMESTAMPTZ
 );
 
+-- 레거시에 없음: PRD 6번 섹션 OAuth 로그인(Google/Apple/Kakao/Naver) 지원용 추가
 CREATE TABLE user_oauth_accounts (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    provider            VARCHAR(20) NOT NULL,       -- GOOGLE, APPLE, KAKAO, NAVER
+    id                  BIGSERIAL PRIMARY KEY,
+    user_id             BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider            VARCHAR(20) NOT NULL,          -- GOOGLE, APPLE, KAKAO, NAVER
     provider_user_id    VARCHAR(255) NOT NULL,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (provider, provider_user_id)
 );
 
+-- 레거시에 없음: api_key 고정 토큰 대체용 (위 헤더 설명 참고)
 CREATE TABLE refresh_tokens (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token_hash          VARCHAR(255) NOT NULL UNIQUE,
-    device_info         VARCHAR(255),
-    expires_at          TIMESTAMPTZ NOT NULL,
-    revoked_at          TIMESTAMPTZ,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash      VARCHAR(255) NOT NULL UNIQUE,
+    device_info     VARCHAR(255),
+    expires_at      TIMESTAMPTZ NOT NULL,
+    revoked_at      TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
 
+-- 레거시에 없음: PRD 15번 섹션 "로그인 기록"
 CREATE TABLE login_history (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    ip_address          VARCHAR(45),
-    user_agent          VARCHAR(255),
-    success             BOOLEAN NOT NULL,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    ip_address      VARCHAR(45),
+    user_agent      VARCHAR(255),
+    success         BOOLEAN NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_login_history_user_id ON login_history(user_id, created_at DESC);
 
 -- =========================================================
--- 그룹
+-- 그룹 (레거시 groups / user_groups 그대로)
 -- =========================================================
 CREATE TABLE groups (
-    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name                    VARCHAR(100) NOT NULL,
-    description             VARCHAR(1000),
-    category                VARCHAR(50),
-    cover_image_url         TEXT,
-    background_image_url    TEXT,
-    visibility              VARCHAR(20) NOT NULL DEFAULT 'INVITE_ONLY', -- PRIVATE, INVITE_ONLY
-    owner_id                UUID NOT NULL REFERENCES users(id),
-    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at              TIMESTAMPTZ
+    id              BIGSERIAL PRIMARY KEY,
+    author_id       BIGINT NOT NULL REFERENCES users(id), -- 레거시 명명 유지 (owner_id 아님)
+    name            VARCHAR(100) NOT NULL,
+    image           VARCHAR(255),
+    description     VARCHAR(1000),
+    join_type       INT NOT NULL DEFAULT 0,               -- 레거시 유지: 0=초대전용 등 가입 방식 플래그
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at      TIMESTAMPTZ
 );
-CREATE INDEX idx_groups_owner_id ON groups(owner_id);
 
-CREATE TABLE group_members (
-    group_id    UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    role        VARCHAR(20) NOT NULL DEFAULT 'MEMBER', -- OWNER, ADMIN, MEMBER
-    joined_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (group_id, user_id)
+-- 레거시 user_groups: 멤버십 + 가입 상태를 status 하나로 표현하던 구조 그대로 유지
+CREATE TABLE user_groups (
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    group_id        BIGINT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    status          INT NOT NULL DEFAULT 0,               -- 레거시 유지: 0=owner/가입승인, 그외=가입요청 등
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, group_id)
 );
-CREATE INDEX idx_group_members_user_id ON group_members(user_id);
+CREATE INDEX idx_user_groups_group_id ON user_groups(group_id);
+CREATE INDEX idx_user_groups_user_id ON user_groups(user_id);
 
+-- 레거시에 없음: PRD "그룹 관리자 > 초대 링크 생성" 지원용 추가
 CREATE TABLE group_invites (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    group_id    UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    id          BIGSERIAL PRIMARY KEY,
+    group_id    BIGINT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     code        VARCHAR(20) NOT NULL UNIQUE,
-    created_by  UUID NOT NULL REFERENCES users(id),
+    created_by  BIGINT NOT NULL REFERENCES users(id),
     max_uses    INT,
     used_count  INT NOT NULL DEFAULT 0,
     expires_at  TIMESTAMPTZ,
@@ -90,155 +99,144 @@ CREATE TABLE group_invites (
 CREATE INDEX idx_group_invites_group_id ON group_invites(group_id);
 
 -- =========================================================
--- 게시글 / 댓글 / 좋아요 / 북마크
+-- 게시글 (레거시 posts / images 그대로)
 -- =========================================================
 CREATE TABLE posts (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    group_id    UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    author_id   UUID NOT NULL REFERENCES users(id),
-    content     TEXT NOT NULL,
-    is_notice   BOOLEAN NOT NULL DEFAULT false,
-    is_pinned   BOOLEAN NOT NULL DEFAULT false,
+    id          BIGSERIAL PRIMARY KEY,
+    group_id    BIGINT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    user_id     BIGINT NOT NULL REFERENCES users(id),
+    text        TEXT NOT NULL,                 -- 레거시 컬럼명 유지(content 아님)
+    status      INT NOT NULL DEFAULT 0,        -- 레거시 유지
+    is_notice   BOOLEAN NOT NULL DEFAULT false, -- 레거시에 없음: PRD 공지 상단고정
+    is_pinned   BOOLEAN NOT NULL DEFAULT false, -- 레거시에 없음: PRD 공지 상단고정
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at  TIMESTAMPTZ
 );
--- 그룹 피드 무한스크롤(16번 비기능요구사항) 조회 패턴에 맞춘 복합 인덱스
 CREATE INDEX idx_posts_group_feed ON posts(group_id, created_at DESC) WHERE deleted_at IS NULL;
-CREATE INDEX idx_posts_author_id ON posts(author_id);
+CREATE INDEX idx_posts_user_id ON posts(user_id);
 
-CREATE TABLE comments (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    post_id             UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-    parent_comment_id   UUID REFERENCES comments(id) ON DELETE CASCADE, -- 대댓글
-    author_id           UUID NOT NULL REFERENCES users(id),
-    content             TEXT NOT NULL,
+CREATE TABLE images (
+    id          BIGSERIAL PRIMARY KEY,
+    post_id     BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    user_id     BIGINT NOT NULL REFERENCES users(id),
+    image       VARCHAR(255) NOT NULL,
+    tag         VARCHAR(100),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_images_post_id ON images(post_id);
+
+-- 레거시 album: getAllAlbum()이 status/profile_img를 select하지만 createAlbum()은
+-- name/image만 insert하는 명백한 버그(존재하지 않는 컬럼 select)라 그대로 옮기지 않고
+-- 실제로 쓰이는 컬럼만 정리함.
+CREATE TABLE album (
+    id          BIGSERIAL PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,
+    image       VARCHAR(255) NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE user_album (
+    user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    album_id    BIGINT NOT NULL REFERENCES album(id) ON DELETE CASCADE,
+    PRIMARY KEY (user_id, album_id)
+);
+
+-- =========================================================
+-- 댓글 (레거시 replys / user_replys 그대로 - 오타 포함 유지)
+-- 레거시는 replys에 post_id가 없고 user_replys가 (user_id, post_id, reply_id)를
+-- 묶어서 보관하는 특이 구조. 그대로 유지하되 reply_id를 PK로 둬서 1:1 확장 테이블화.
+-- =========================================================
+CREATE TABLE replys (
+    id                  BIGSERIAL PRIMARY KEY,
+    user_id             BIGINT NOT NULL REFERENCES users(id),
+    parent_reply_id     BIGINT REFERENCES replys(id) ON DELETE CASCADE, -- 레거시에 없음: PRD 대댓글
+    reply               TEXT NOT NULL,
+    status              INT NOT NULL DEFAULT 0,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at          TIMESTAMPTZ
 );
-CREATE INDEX idx_comments_post_id ON comments(post_id, created_at);
-CREATE INDEX idx_comments_parent_id ON comments(parent_comment_id);
+CREATE INDEX idx_replys_parent_id ON replys(parent_reply_id);
 
+CREATE TABLE user_replys (
+    reply_id    BIGINT PRIMARY KEY REFERENCES replys(id) ON DELETE CASCADE,
+    user_id     BIGINT NOT NULL REFERENCES users(id),
+    post_id     BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_user_replys_post_id ON user_replys(post_id, reply_id);
+
+-- =========================================================
+-- 좋아요 / 신고 / 친구 (레거시 post_likes / post_reports / user_friends 그대로)
+-- =========================================================
 CREATE TABLE post_likes (
-    post_id     UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    post_id     BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (post_id, user_id)
+    PRIMARY KEY (user_id, post_id)
 );
 
-CREATE TABLE post_bookmarks (
-    post_id     UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+CREATE TABLE post_reports (
+    user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    post_id     BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (post_id, user_id)
+    PRIMARY KEY (user_id, post_id)
+);
+
+CREATE TABLE user_friends (
+    user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    friend_id   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, friend_id)
 );
 
 -- =========================================================
--- 실시간 채팅
+-- 채팅 (레거시 chat_rooms / messages 그대로, PK명도 유지: chat_room_id/message_id)
 -- =========================================================
 CREATE TABLE chat_rooms (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    group_id    UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    name        VARCHAR(100) NOT NULL DEFAULT '전체 채팅방',
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    chat_room_id    BIGSERIAL PRIMARY KEY,
+    group_id        BIGINT REFERENCES groups(id) ON DELETE CASCADE, -- 레거시에 없음: 그룹 스코프 추가
+    name            VARCHAR(100) NOT NULL DEFAULT '전체 채팅방',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_chat_rooms_group_id ON chat_rooms(group_id);
 
-CREATE TABLE chat_messages (
-    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    room_id                 UUID NOT NULL REFERENCES chat_rooms(id) ON DELETE CASCADE,
-    sender_id               UUID NOT NULL REFERENCES users(id),
-    content                 TEXT,
-    message_type            VARCHAR(20) NOT NULL DEFAULT 'TEXT', -- TEXT, IMAGE, VIDEO, FILE, EMOJI, GIF, NOTICE
-    reply_to_message_id     UUID REFERENCES chat_messages(id),
-    is_notice               BOOLEAN NOT NULL DEFAULT false,
-    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at              TIMESTAMPTZ
+CREATE TABLE messages (
+    message_id      BIGSERIAL PRIMARY KEY,
+    chat_room_id    BIGINT NOT NULL REFERENCES chat_rooms(chat_room_id) ON DELETE CASCADE,
+    user_id         BIGINT NOT NULL REFERENCES users(id),
+    message         TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at      TIMESTAMPTZ
 );
-CREATE INDEX idx_chat_messages_room_feed ON chat_messages(room_id, created_at DESC);
-
-CREATE TABLE chat_message_reads (
-    room_id                 UUID NOT NULL REFERENCES chat_rooms(id) ON DELETE CASCADE,
-    user_id                 UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    last_read_message_id    UUID REFERENCES chat_messages(id),
-    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (room_id, user_id)
-);
-
-CREATE TABLE chat_message_mentions (
-    message_id          UUID NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
-    mentioned_user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    PRIMARY KEY (message_id, mentioned_user_id)
-);
+CREATE INDEX idx_messages_room_feed ON messages(chat_room_id, created_at DESC);
 
 -- =========================================================
--- 파일 공유 (게시글 첨부 / 채팅 첨부 / 그룹 파일·사진 탭 겸용)
--- post_id, message_id 둘 다 NULL이면 그룹의 일반 파일 저장소(Files 탭) 항목
--- =========================================================
-CREATE TABLE files (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    group_id            UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    uploader_id         UUID NOT NULL REFERENCES users(id),
-    post_id             UUID REFERENCES posts(id) ON DELETE CASCADE,
-    message_id          UUID REFERENCES chat_messages(id) ON DELETE CASCADE,
-    file_type           VARCHAR(20) NOT NULL, -- IMAGE, VIDEO, PDF, WORD, EXCEL, PPT, ZIP, OTHER
-    file_name           VARCHAR(255) NOT NULL,
-    file_size_bytes     BIGINT NOT NULL,
-    storage_url         TEXT NOT NULL,         -- Supabase Storage object URL
-    thumbnail_url       TEXT,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at          TIMESTAMPTZ
-);
-CREATE INDEX idx_files_group_id ON files(group_id, created_at DESC);
-CREATE INDEX idx_files_post_id ON files(post_id);
-CREATE INDEX idx_files_message_id ON files(message_id);
--- Photos 탭(사진만) 조회 최적화
-CREATE INDEX idx_files_group_photos ON files(group_id, created_at DESC) WHERE file_type = 'IMAGE';
-
--- =========================================================
--- 화상회의
+-- 화상회의 / 알림 (레거시에 아예 없음, PRD MVP 필수 기능이라 신규 추가)
 -- =========================================================
 CREATE TABLE meetings (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    group_id    UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    host_id     UUID NOT NULL REFERENCES users(id),
+    id          BIGSERIAL PRIMARY KEY,
+    group_id    BIGINT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    host_id     BIGINT NOT NULL REFERENCES users(id),
     started_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     ended_at    TIMESTAMPTZ
 );
 CREATE INDEX idx_meetings_group_id ON meetings(group_id);
 
 CREATE TABLE meeting_participants (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    meeting_id  UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
-    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id          BIGSERIAL PRIMARY KEY,
+    meeting_id  BIGINT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+    user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     joined_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     left_at     TIMESTAMPTZ
 );
 CREATE INDEX idx_meeting_participants_meeting_id ON meeting_participants(meeting_id);
 
--- =========================================================
--- 알림 / 신고
--- =========================================================
 CREATE TABLE notifications (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id          BIGSERIAL PRIMARY KEY,
+    user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type        VARCHAR(30) NOT NULL, -- NEW_POST, COMMENT, LIKE, MENTION, CHAT, MEETING_STARTED, NOTICE, INVITE
-    target_type VARCHAR(30),          -- POST, COMMENT, CHAT_MESSAGE, MEETING, GROUP
-    target_id   UUID,
+    target_type VARCHAR(30),          -- POST, REPLY, MESSAGE, MEETING, GROUP
+    target_id   BIGINT,
     is_read     BOOLEAN NOT NULL DEFAULT false,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_notifications_user_unread ON notifications(user_id, is_read, created_at DESC);
-
-CREATE TABLE reports (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    target_type VARCHAR(20) NOT NULL, -- POST, COMMENT, USER
-    target_id   UUID NOT NULL,
-    reporter_id UUID NOT NULL REFERENCES users(id),
-    reason      VARCHAR(500) NOT NULL,
-    status      VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING, REVIEWED, REJECTED
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX idx_reports_status ON reports(status, created_at);
