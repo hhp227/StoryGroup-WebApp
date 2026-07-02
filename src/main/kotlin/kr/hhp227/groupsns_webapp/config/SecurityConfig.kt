@@ -44,8 +44,12 @@ class SecurityConfig(
     }
 
     private fun corsConfigurationSource(): CorsConfigurationSource {
+        // apply{} 블록 안에서 "allowedOrigins"를 직접 쓰면 CorsConfiguration 자체의
+        // allowedOrigins 프로퍼티(List<String>?)에 가려져 생성자의 String 프로퍼티가 아니라
+        // 그쪽으로 잘못 resolve된다(컴파일 에러의 원인이었음). 그래서 apply 밖에서 미리 split한다.
+        val origins = allowedOrigins.split(",").map { it.trim() }
         val configuration = CorsConfiguration().apply {
-            allowedOriginPatterns = allowedOrigins.split(",").map { it.trim() }
+            allowedOriginPatterns = origins
             allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
             allowedHeaders = listOf("*")
             allowCredentials = true
