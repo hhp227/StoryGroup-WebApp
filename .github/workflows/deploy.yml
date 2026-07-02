@@ -1,0 +1,42 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - develop
+    # master → 프로덕션 배포를 추가하려면 branches에 master를 넣고,
+    # env.SERVICE/REGION을 브랜치별로 분기(예: storygroup-prod)하면 됩니다.
+
+env:
+  PROJECT_ID: application-bb416
+  REGION: asia-northeast3
+  SERVICE: storygroup
+  WIF_PROVIDER: projects/476947981226/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  DEPLOYER_SA: github-actions-deployer@application-bb416.iam.gserviceaccount.com
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOYER_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --source . \
+            --region "$REGION" \
+            --project "$PROJECT_ID" \
+            --allow-unauthenticated \
+            --quiet
