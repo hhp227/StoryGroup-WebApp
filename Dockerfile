@@ -4,7 +4,8 @@
 FROM eclipse-temurin:11-jdk AS build
 WORKDIR /app
 COPY . .
-RUN chmod +x ./gradlew && ./gradlew bootJar --no-daemon
+# gradlew가 Windows(CRLF) 체크아웃일 경우 셔뱅이 깨지므로 CR 제거 후 실행
+RUN sed -i 's/\r$//' gradlew && chmod +x gradlew && ./gradlew bootJar --no-daemon
 
 # --- Run stage ---
 FROM eclipse-temurin:11-jre
