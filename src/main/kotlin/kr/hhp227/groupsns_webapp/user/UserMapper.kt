@@ -1,0 +1,34 @@
+package kr.hhp227.groupsns_webapp.user
+
+import org.apache.ibatis.annotations.Insert
+import org.apache.ibatis.annotations.Mapper
+import org.apache.ibatis.annotations.Options
+import org.apache.ibatis.annotations.Select
+
+@Mapper
+interface UserMapper {
+    @Select(
+        """
+        SELECT id, name, email, password_hash, status, profile_img, fcm_registration_id, created_at, deleted_at
+        FROM users
+        WHERE email = #{email} AND deleted_at IS NULL
+        """
+    )
+    fun findByEmail(email: String): User?
+
+    @Select(
+        """
+        SELECT id, name, email, password_hash, status, profile_img, fcm_registration_id, created_at, deleted_at
+        FROM users
+        WHERE id = #{id} AND deleted_at IS NULL
+        """
+    )
+    fun findById(id: Long): User?
+
+    @Select("SELECT EXISTS(SELECT 1 FROM users WHERE email = #{email})")
+    fun existsByEmail(email: String): Boolean
+
+    @Insert("INSERT INTO users(name, email, password_hash) VALUES(#{name}, #{email}, #{passwordHash})")
+    @Options(useGeneratedKeys = true, keyProperty = "id")
+    fun insert(record: NewUserRecord): Int
+}
