@@ -36,3 +36,8 @@ tasks.withType<KotlinCompile> {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+// Cloud Run: 실행 가능한 bootJar 하나만 남기도록 plain jar 비활성화
+tasks.named<Jar>("jar") {
+	enabled = false
+}

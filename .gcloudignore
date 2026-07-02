@@ -1,0 +1,6 @@
+# Cloud Build 업로드 시 제외할 항목 (소스/gradlew/wrapper는 컨테이너 빌드에 필요하므로 포함)
+.git/
+.gradle/
+build/
+.idea/
+*.iml
