@@ -2,7 +2,7 @@ package kr.hhp227.groupsns_webapp.auth
 
 import kr.hhp227.groupsns_webapp.auth.dto.LoginRequest
 import kr.hhp227.groupsns_webapp.auth.dto.RefreshTokenRequest
-import kr.hhp227.groupsns_webapp.auth.dto.SignupRequest
+import kr.hhp227.groupsns_webapp.auth.dto.RegisterRequest
 import kr.hhp227.groupsns_webapp.auth.dto.TokenResponse
 import kr.hhp227.groupsns_webapp.auth.dto.UserSummaryResponse
 import org.springframework.http.HttpStatus
@@ -18,9 +18,9 @@ import javax.validation.Valid
 @RequestMapping("/api/auth")
 class AuthController(private val authService: AuthService) {
 
-    @PostMapping("/signup")
-    fun signup(@Valid @RequestBody request: SignupRequest): ResponseEntity<UserSummaryResponse> =
-        ResponseEntity.status(HttpStatus.CREATED).body(authService.signup(request))
+    @PostMapping("/register")
+    fun register(@Valid @RequestBody request: RegisterRequest): ResponseEntity<UserSummaryResponse> =
+        ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request))
 
     @PostMapping("/login")
     fun login(@Valid @RequestBody request: LoginRequest, httpRequest: HttpServletRequest): TokenResponse =

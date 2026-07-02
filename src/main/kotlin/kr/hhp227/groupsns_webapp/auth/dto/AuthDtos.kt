@@ -5,7 +5,7 @@ import javax.validation.constraints.Email
 import javax.validation.constraints.NotBlank
 import javax.validation.constraints.Size
 
-data class SignupRequest(
+data class RegisterRequest(
     @field:NotBlank @field:Size(max = 50) val name: String,
     @field:NotBlank @field:Email @field:Size(max = 255) val email: String,
     // bcrypt는 72바이트를 넘는 입력을 자르므로 상한을 둠

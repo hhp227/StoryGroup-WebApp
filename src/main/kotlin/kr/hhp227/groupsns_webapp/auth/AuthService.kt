@@ -2,7 +2,7 @@ package kr.hhp227.groupsns_webapp.auth
 
 import kr.hhp227.groupsns_webapp.auth.dto.LoginRequest
 import kr.hhp227.groupsns_webapp.auth.dto.RefreshTokenRequest
-import kr.hhp227.groupsns_webapp.auth.dto.SignupRequest
+import kr.hhp227.groupsns_webapp.auth.dto.RegisterRequest
 import kr.hhp227.groupsns_webapp.auth.dto.TokenResponse
 import kr.hhp227.groupsns_webapp.auth.dto.UserSummaryResponse
 import kr.hhp227.groupsns_webapp.common.exception.DuplicateEmailException
@@ -34,7 +34,7 @@ class AuthService(
     private val secureRandom = SecureRandom()
 
     @Transactional
-    fun signup(request: SignupRequest): UserSummaryResponse {
+    fun register(request: RegisterRequest): UserSummaryResponse {
         if (userMapper.existsByEmail(request.email)) {
             throw DuplicateEmailException()
         }
