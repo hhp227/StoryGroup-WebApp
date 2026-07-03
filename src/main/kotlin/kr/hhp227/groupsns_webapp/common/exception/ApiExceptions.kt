@@ -17,3 +17,6 @@ class ForbiddenException(message: String = "이 작업을 수행할 권한이 �
 class InvalidInviteException : RuntimeException("유효하지 않거나 만료된 초대 코드입니다")
 
 class AlreadyMemberException : RuntimeException("이미 가입된 그룹입니다")
+
+// 존재하지 않거나 다른 그룹 소속인 게시글. 그룹과 마찬가지로 비멤버에게는 403이 아니라 404로 통일한다.
+class PostNotFoundException : RuntimeException("게시글을 찾을 수 없습니다")

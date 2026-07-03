@@ -39,7 +39,7 @@ class GlobalExceptionHandler {
     fun handleInvalidInvite(ex: InvalidInviteException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ErrorResponse("INVALID_INVITE", ex.message!!))
 
-    @ExceptionHandler(GroupNotFoundException::class, GroupMemberNotFoundException::class)
+    @ExceptionHandler(GroupNotFoundException::class, GroupMemberNotFoundException::class, PostNotFoundException::class)
     fun handleNotFound(ex: RuntimeException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("NOT_FOUND", ex.message!!))
 
