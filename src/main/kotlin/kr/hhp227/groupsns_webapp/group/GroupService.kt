@@ -72,6 +72,7 @@ class GroupService(
     fun deleteGroup(userId: Long, groupId: Long) {
         dbSessionMapper.setCurrentUserId(userId)
         requireOwner(userId, groupId)
+        requireNotLounge(groupId, "라운지는 삭제할 수 없습니다")
         groupMapper.softDelete(groupId)
     }
 
@@ -113,6 +114,7 @@ class GroupService(
     fun kickMember(userId: Long, groupId: Long, targetUserId: Long) {
         dbSessionMapper.setCurrentUserId(userId)
         requireOwner(userId, groupId)
+        requireNotLounge(groupId, "라운지에서는 멤버를 강퇴할 수 없습니다")
         if (targetUserId == userId) {
             throw IllegalArgumentException("자기 자신은 강퇴할 수 없습니다. 그룹 삭제를 이용하세요")
         }
@@ -124,6 +126,7 @@ class GroupService(
     fun leaveGroup(userId: Long, groupId: Long) {
         dbSessionMapper.setCurrentUserId(userId)
         val role = requireMembership(userId, groupId)
+        requireNotLounge(groupId, "라운지는 탈퇴할 수 없습니다")
         if (role == GroupRole.OWNER) {
             throw IllegalArgumentException("소유자는 그룹을 탈퇴할 수 없습니다. 그룹 삭제를 이용하세요")
         }
@@ -135,6 +138,11 @@ class GroupService(
 
     private fun requireOwner(userId: Long, groupId: Long) {
         if (requireMembership(userId, groupId) != GroupRole.OWNER) throw ForbiddenException()
+    }
+
+    private fun requireNotLounge(groupId: Long, message: String) {
+        val group = groupMapper.findById(groupId) ?: throw GroupNotFoundException()
+        if (group.isLounge) throw IllegalArgumentException(message)
     }
 
     // 코드 유일성은 INSERT의 UNIQUE 제약을 catch/retry하는 대신 사전 조회로 확인한다.
