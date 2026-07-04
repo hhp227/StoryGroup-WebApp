@@ -1,6 +1,7 @@
 package kr.hhp227.groupsns_webapp.chat.dto
 
 import kr.hhp227.groupsns_webapp.chat.ChatRoom
+import kr.hhp227.groupsns_webapp.chat.DirectRoomRow
 import kr.hhp227.groupsns_webapp.chat.MessageFeedRow
 import java.time.OffsetDateTime
 import javax.validation.constraints.NotBlank
@@ -12,12 +13,30 @@ data class CreateChatRoomRequest(
 
 data class ChatRoomResponse(
     val id: Long,
-    val groupId: Long,
+    val groupId: Long?,
     val name: String,
     val createdAt: OffsetDateTime
 ) {
     companion object {
         fun from(room: ChatRoom) = ChatRoomResponse(room.id, room.groupId, room.name, room.createdAt)
+    }
+}
+
+data class DirectRoomResponse(
+    val id: Long,
+    val otherUserId: Long,
+    val otherUserName: String,
+    val otherUserProfileImg: String?,
+    val createdAt: OffsetDateTime
+) {
+    companion object {
+        fun from(row: DirectRoomRow) = DirectRoomResponse(
+            id = row.id,
+            otherUserId = row.otherUserId,
+            otherUserName = row.otherUserName,
+            otherUserProfileImg = row.otherUserProfileImg,
+            createdAt = row.createdAt
+        )
     }
 }
 
