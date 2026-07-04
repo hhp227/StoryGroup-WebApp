@@ -15,7 +15,8 @@ data class GroupWithRoleRow(
     val joinType: Int,
     val createdAt: OffsetDateTime,
     val deletedAt: OffsetDateTime?,
-    val myRole: GroupRole
+    val myRole: GroupRole,
+    val isLounge: Boolean
 )
 
 data class GroupMemberRow(

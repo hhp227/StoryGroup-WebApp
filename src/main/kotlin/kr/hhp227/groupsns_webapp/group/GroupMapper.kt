@@ -10,12 +10,22 @@ import org.apache.ibatis.annotations.Update
 interface GroupMapper {
     @Select(
         """
-        SELECT id, author_id, name, image, description, join_type, created_at, deleted_at
+        SELECT id, author_id, name, image, description, join_type, created_at, deleted_at, is_lounge
         FROM groups
         WHERE id = #{id} AND deleted_at IS NULL
         """
     )
     fun findById(id: Long): Group?
+
+    // AuthService가 신규 가입자를 자동 가입시키기 위해 조회. 라운지가 아직 없으면(마이그레이션 전) null.
+    @Select(
+        """
+        SELECT id, author_id, name, image, description, join_type, created_at, deleted_at, is_lounge
+        FROM groups
+        WHERE is_lounge = true AND deleted_at IS NULL
+        """
+    )
+    fun findLounge(): Group?
 
     @Insert(
         """

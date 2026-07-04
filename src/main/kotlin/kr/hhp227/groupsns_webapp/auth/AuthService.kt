@@ -8,6 +8,9 @@ import kr.hhp227.groupsns_webapp.auth.dto.UserSummaryResponse
 import kr.hhp227.groupsns_webapp.common.exception.DuplicateEmailException
 import kr.hhp227.groupsns_webapp.common.exception.InvalidCredentialsException
 import kr.hhp227.groupsns_webapp.common.exception.InvalidRefreshTokenException
+import kr.hhp227.groupsns_webapp.group.GroupMapper
+import kr.hhp227.groupsns_webapp.group.GroupRole
+import kr.hhp227.groupsns_webapp.group.UserGroupMapper
 import kr.hhp227.groupsns_webapp.security.JwtTokenProvider
 import kr.hhp227.groupsns_webapp.user.NewUserRecord
 import kr.hhp227.groupsns_webapp.user.User
@@ -27,6 +30,8 @@ class AuthService(
     private val userMapper: UserMapper,
     private val refreshTokenMapper: RefreshTokenMapper,
     private val loginHistoryMapper: LoginHistoryMapper,
+    private val groupMapper: GroupMapper,
+    private val userGroupMapper: UserGroupMapper,
     private val passwordEncoder: PasswordEncoder,
     private val jwtTokenProvider: JwtTokenProvider,
     @Value("\${jwt.refresh-token-expiration-ms}") private val refreshTokenExpirationMs: Long
@@ -45,6 +50,13 @@ class AuthService(
         )
         userMapper.insert(record)
         val user = userMapper.findById(record.id) ?: throw IllegalStateException("방금 생성한 유저를 찾을 수 없습니다")
+
+        // 라운지(전체 공개 피드)는 그룹 하나일 뿐이라 신규 가입자를 자동으로 멤버 가입시킨다.
+        // 마이그레이션 전이라 라운지가 아직 없는 경우(findLounge() == null)는 건너뛴다.
+        groupMapper.findLounge()?.let { lounge ->
+            userGroupMapper.insert(user.id, lounge.id, GroupRole.MEMBER)
+        }
+
         return UserSummaryResponse.from(user)
     }
 

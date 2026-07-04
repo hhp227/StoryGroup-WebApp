@@ -24,11 +24,11 @@ interface UserGroupMapper {
     @Select(
         """
         SELECT g.id, g.author_id, g.name, g.image, g.description, g.join_type, g.created_at, g.deleted_at,
-               ug.role AS my_role
+               ug.role AS my_role, g.is_lounge
         FROM groups g
         JOIN user_groups ug ON ug.group_id = g.id
         WHERE ug.user_id = #{userId} AND g.deleted_at IS NULL
-        ORDER BY g.created_at DESC
+        ORDER BY g.is_lounge DESC, g.created_at DESC
         """
     )
     fun findGroupsForUser(userId: Long): List<GroupWithRoleRow>

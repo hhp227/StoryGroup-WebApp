@@ -41,7 +41,8 @@ data class GroupResponse(
     val image: String?,
     val joinType: GroupJoinType,
     val myRole: GroupRole,
-    val createdAt: OffsetDateTime
+    val createdAt: OffsetDateTime,
+    val isLounge: Boolean
 ) {
     companion object {
         fun from(group: Group, myRole: GroupRole) = GroupResponse(
@@ -51,7 +52,8 @@ data class GroupResponse(
             image = group.image,
             joinType = GroupJoinType.fromCode(group.joinType),
             myRole = myRole,
-            createdAt = group.createdAt
+            createdAt = group.createdAt,
+            isLounge = group.isLounge
         )
 
         fun from(row: GroupWithRoleRow) = GroupResponse(
@@ -61,7 +63,8 @@ data class GroupResponse(
             image = row.image,
             joinType = GroupJoinType.fromCode(row.joinType),
             myRole = row.myRole,
-            createdAt = row.createdAt
+            createdAt = row.createdAt,
+            isLounge = row.isLounge
         )
     }
 }
