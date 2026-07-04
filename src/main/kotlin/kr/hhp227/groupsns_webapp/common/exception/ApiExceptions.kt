@@ -20,3 +20,6 @@ class AlreadyMemberException : RuntimeException("이미 가입된 그룹입니�
 
 // 존재하지 않거나 다른 그룹 소속인 게시글. 그룹과 마찬가지로 비멤버에게는 403이 아니라 404로 통일한다.
 class PostNotFoundException : RuntimeException("게시글을 찾을 수 없습니다")
+
+// 존재하지 않거나 다른 게시글 소속인 댓글(대댓글의 부모 댓글 포함). Post/Group과 마찬가지로 404로 통일한다.
+class CommentNotFoundException : RuntimeException("댓글을 찾을 수 없습니다")
