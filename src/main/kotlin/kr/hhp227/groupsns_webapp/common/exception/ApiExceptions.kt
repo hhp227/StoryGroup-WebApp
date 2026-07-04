@@ -31,3 +31,6 @@ class ChatRoomNotFoundException : RuntimeException("채팅방을 찾을 수 없�
 
 // 존재하지 않거나 다른 채팅방 소속인 메시지.
 class MessageNotFoundException : RuntimeException("메시지를 찾을 수 없습니다")
+
+// 존재하지 않거나 다른 그룹 소속인 회의.
+class MeetingNotFoundException : RuntimeException("회의를 찾을 수 없습니다")
