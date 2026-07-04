@@ -25,3 +25,9 @@ class PostNotFoundException : RuntimeException("게시글을 찾을 수 없습�
 class CommentNotFoundException : RuntimeException("댓글을 찾을 수 없습니다")
 
 class AlreadyLikedException : RuntimeException("이미 좋아요를 누른 게시글입니다")
+
+// 존재하지 않거나 다른 그룹 소속인 채팅방. Post/Group과 마찬가지로 404로 통일한다.
+class ChatRoomNotFoundException : RuntimeException("채팅방을 찾을 수 없습니다")
+
+// 존재하지 않거나 다른 채팅방 소속인 메시지.
+class MessageNotFoundException : RuntimeException("메시지를 찾을 수 없습니다")
