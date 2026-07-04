@@ -1,5 +1,7 @@
 package kr.hhp227.groupsns_webapp.group
 
+import kr.hhp227.groupsns_webapp.chat.ChatRoomMapper
+import kr.hhp227.groupsns_webapp.chat.NewChatRoomRecord
 import kr.hhp227.groupsns_webapp.common.db.DbSessionMapper
 import kr.hhp227.groupsns_webapp.common.exception.AlreadyMemberException
 import kr.hhp227.groupsns_webapp.common.exception.ForbiddenException
@@ -22,6 +24,7 @@ class GroupService(
     private val groupMapper: GroupMapper,
     private val userGroupMapper: UserGroupMapper,
     private val groupInviteMapper: GroupInviteMapper,
+    private val chatRoomMapper: ChatRoomMapper,
     private val dbSessionMapper: DbSessionMapper
 ) {
     private val secureRandom = SecureRandom()
@@ -40,6 +43,9 @@ class GroupService(
         )
         groupMapper.insert(record)
         userGroupMapper.insert(authorId, record.id, GroupRole.OWNER)
+        // 그룹마다 기본 채팅방("일반")을 하나 자동으로 만들어둔다 — 멤버는 여기에 더해 서브
+        // 채팅방을 얼마든지 추가로 만들 수 있다(ChatController.createChatRoom).
+        chatRoomMapper.insert(NewChatRoomRecord(record.id, "일반"))
         val group = groupMapper.findById(record.id) ?: throw IllegalStateException("방금 생성한 그룹을 찾을 수 없습니다")
         return GroupResponse.from(group, GroupRole.OWNER)
     }

@@ -3,6 +3,7 @@ package kr.hhp227.groupsns_webapp.chat
 import kr.hhp227.groupsns_webapp.chat.dto.ChatRoomResponse
 import kr.hhp227.groupsns_webapp.chat.dto.CreateChatRoomRequest
 import kr.hhp227.groupsns_webapp.chat.dto.CreateMessageRequest
+import kr.hhp227.groupsns_webapp.chat.dto.DirectRoomResponse
 import kr.hhp227.groupsns_webapp.chat.dto.MessageResponse
 import kr.hhp227.groupsns_webapp.chat.dto.UpdateMessageRequest
 import kr.hhp227.groupsns_webapp.common.db.DbSessionMapper
@@ -79,6 +80,51 @@ class ChatService(
         messageMapper.softDelete(messageId)
     }
 
+    @Transactional
+    fun getOrCreateDirectRoom(userId: Long, otherUserId: Long): ChatRoomResponse {
+        if (userId == otherUserId) throw IllegalArgumentException("자기 자신과는 DM을 시작할 수 없습니다")
+        dbSessionMapper.setCurrentUserId(userId)
+
+        val existing = chatRoomMapper.findDirectRoom(userId, otherUserId)
+        if (existing != null) return ChatRoomResponse.from(existing)
+
+        val record = NewDirectRoomRecord(userId, otherUserId, "DM")
+        chatRoomMapper.insertDirect(record)
+        val room = chatRoomMapper.findById(record.id) ?: throw ChatRoomNotFoundException()
+        return ChatRoomResponse.from(room)
+    }
+
+    @Transactional
+    fun listDirectRooms(userId: Long): List<DirectRoomResponse> {
+        dbSessionMapper.setCurrentUserId(userId)
+        return chatRoomMapper.findDirectRoomsForUser(userId).map { DirectRoomResponse.from(it) }
+    }
+
+    @Transactional
+    fun sendDirectMessage(userId: Long, chatRoomId: Long, request: CreateMessageRequest): MessageResponse {
+        dbSessionMapper.setCurrentUserId(userId)
+        requireDirectRoomParticipant(userId, chatRoomId)
+
+        val record = NewMessageRecord(chatRoomId, userId, request.text)
+        messageMapper.insert(record)
+        return loadMessage(record.id, chatRoomId)
+    }
+
+    @Transactional
+    fun listDirectMessages(userId: Long, chatRoomId: Long, page: Int, size: Int): List<MessageResponse> {
+        dbSessionMapper.setCurrentUserId(userId)
+        requireDirectRoomParticipant(userId, chatRoomId)
+        return messageMapper.findFeedByRoom(chatRoomId, size, page * size).map { MessageResponse.from(it) }
+    }
+
+    @Transactional
+    fun deleteDirectMessage(userId: Long, chatRoomId: Long, messageId: Long) {
+        dbSessionMapper.setCurrentUserId(userId)
+        requireDirectRoomParticipant(userId, chatRoomId)
+        requireMessageOwner(userId, chatRoomId, messageId)
+        messageMapper.softDelete(messageId)
+    }
+
     private fun loadMessage(messageId: Long, chatRoomId: Long): MessageResponse {
         val row = messageMapper.findFeedRowById(messageId, chatRoomId) ?: throw MessageNotFoundException()
         return MessageResponse.from(row)
@@ -95,5 +141,10 @@ class ChatService(
     private fun requireMessageOwner(userId: Long, chatRoomId: Long, messageId: Long) {
         val message = messageMapper.findById(messageId)?.takeIf { it.chatRoomId == chatRoomId } ?: throw MessageNotFoundException()
         if (message.userId != userId) throw ForbiddenException()
+    }
+
+    private fun requireDirectRoomParticipant(userId: Long, chatRoomId: Long) {
+        val room = chatRoomMapper.findById(chatRoomId)?.takeIf { it.groupId == null } ?: throw ChatRoomNotFoundException()
+        if (room.userAId != userId && room.userBId != userId) throw ChatRoomNotFoundException()
     }
 }
