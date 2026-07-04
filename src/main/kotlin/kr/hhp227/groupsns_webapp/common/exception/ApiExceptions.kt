@@ -34,3 +34,6 @@ class MessageNotFoundException : RuntimeException("메시지를 찾을 수 없�
 
 // 존재하지 않거나 다른 그룹 소속인 회의.
 class MeetingNotFoundException : RuntimeException("회의를 찾을 수 없습니다")
+
+// 존재하지 않거나 다른 그룹 소속인 파일. java.io.FileNotFoundException과의 혼동을 피하기 위해 명명.
+class GroupFileNotFoundException : RuntimeException("파일을 찾을 수 없습니다")
