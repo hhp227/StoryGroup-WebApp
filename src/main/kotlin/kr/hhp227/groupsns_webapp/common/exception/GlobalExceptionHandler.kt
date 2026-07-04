@@ -49,7 +49,8 @@ class GlobalExceptionHandler {
         PostNotFoundException::class,
         CommentNotFoundException::class,
         ChatRoomNotFoundException::class,
-        MessageNotFoundException::class
+        MessageNotFoundException::class,
+        MeetingNotFoundException::class
     )
     fun handleNotFound(ex: RuntimeException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("NOT_FOUND", ex.message!!))
