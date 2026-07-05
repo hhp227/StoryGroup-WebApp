@@ -4,12 +4,13 @@ import org.apache.ibatis.annotations.Insert
 import org.apache.ibatis.annotations.Mapper
 import org.apache.ibatis.annotations.Options
 import org.apache.ibatis.annotations.Select
+import org.apache.ibatis.annotations.Update
 
 @Mapper
 interface UserMapper {
     @Select(
         """
-        SELECT id, name, email, password_hash, status, profile_img, fcm_registration_id, created_at, deleted_at
+        SELECT id, name, email, password_hash, status, profile_img, bio, status_message, fcm_registration_id, created_at, deleted_at
         FROM users
         WHERE email = #{email} AND deleted_at IS NULL
         """
@@ -18,7 +19,7 @@ interface UserMapper {
 
     @Select(
         """
-        SELECT id, name, email, password_hash, status, profile_img, fcm_registration_id, created_at, deleted_at
+        SELECT id, name, email, password_hash, status, profile_img, bio, status_message, fcm_registration_id, created_at, deleted_at
         FROM users
         WHERE id = #{id} AND deleted_at IS NULL
         """
@@ -31,4 +32,13 @@ interface UserMapper {
     @Insert("INSERT INTO users(name, email, password_hash) VALUES(#{name}, #{email}, #{passwordHash})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     fun insert(record: NewUserRecord): Int
+
+    @Update(
+        """
+        UPDATE users
+        SET name = #{name}, profile_img = #{profileImg}, bio = #{bio}, status_message = #{statusMessage}
+        WHERE id = #{id} AND deleted_at IS NULL
+        """
+    )
+    fun updateProfile(update: UserProfileUpdate): Int
 }

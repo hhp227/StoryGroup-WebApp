@@ -40,3 +40,6 @@ class GroupFileNotFoundException : RuntimeException("파일을 찾을 수 없습
 
 // 존재하지 않거나 다른 사용자 소속인 알림.
 class NotificationNotFoundException : RuntimeException("알림을 찾을 수 없습니다")
+
+// JWT principal은 있는데 그 시점 유저가 탈퇴 등으로 사라진 경우에 대한 방어적 처리(정상 흐름에선 발생 안 함).
+class UserNotFoundException : RuntimeException("사용자를 찾을 수 없습니다")

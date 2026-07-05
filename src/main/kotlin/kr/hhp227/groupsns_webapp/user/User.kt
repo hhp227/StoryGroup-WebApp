@@ -9,6 +9,8 @@ data class User(
     val passwordHash: String?,
     val status: Int,
     val profileImg: String?,
+    val bio: String?,
+    val statusMessage: String?,
     val fcmRegistrationId: String?,
     val createdAt: OffsetDateTime,
     val deletedAt: OffsetDateTime?
@@ -22,3 +24,11 @@ class NewUserRecord(
 ) {
     var id: Long = 0
 }
+
+class UserProfileUpdate(
+    val id: Long,
+    val name: String,
+    val profileImg: String?,
+    val bio: String?,
+    val statusMessage: String?
+)
