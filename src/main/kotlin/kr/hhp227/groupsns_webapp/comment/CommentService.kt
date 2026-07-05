@@ -8,6 +8,7 @@ import kr.hhp227.groupsns_webapp.common.exception.CommentNotFoundException
 import kr.hhp227.groupsns_webapp.common.exception.ForbiddenException
 import kr.hhp227.groupsns_webapp.common.exception.GroupNotFoundException
 import kr.hhp227.groupsns_webapp.common.exception.PostNotFoundException
+import kr.hhp227.groupsns_webapp.group.GroupRole
 import kr.hhp227.groupsns_webapp.group.UserGroupMapper
 import kr.hhp227.groupsns_webapp.notification.NotificationService
 import kr.hhp227.groupsns_webapp.notification.NotificationTargetType
@@ -77,9 +78,9 @@ class CommentService(
     @Transactional
     fun deleteComment(userId: Long, groupId: Long, postId: Long, commentId: Long) {
         dbSessionMapper.setCurrentUserId(userId)
-        requireMembership(userId, groupId)
+        val role = requireMembership(userId, groupId)
         requirePostExists(groupId, postId)
-        requireCommentOwner(userId, postId, commentId)
+        requireCommentDeletable(userId, postId, commentId, role)
         commentMapper.softDelete(commentId)
     }
 
@@ -88,9 +89,8 @@ class CommentService(
         return CommentResponse.from(row)
     }
 
-    private fun requireMembership(userId: Long, groupId: Long) {
+    private fun requireMembership(userId: Long, groupId: Long): GroupRole =
         userGroupMapper.findRole(userId, groupId) ?: throw GroupNotFoundException()
-    }
 
     private fun requirePostExists(groupId: Long, postId: Long) =
         postMapper.findById(postId)?.takeIf { it.groupId == groupId } ?: throw PostNotFoundException()
@@ -98,5 +98,11 @@ class CommentService(
     private fun requireCommentOwner(userId: Long, postId: Long, commentId: Long) {
         val row = commentMapper.findFeedRowById(commentId, postId) ?: throw CommentNotFoundException()
         if (row.userId != userId) throw ForbiddenException()
+    }
+
+    // 삭제는 작성자 본인 또는 그룹 방장(OWNER)이 할 수 있다. 수정(requireCommentOwner)은 그대로 작성자 본인만 허용.
+    private fun requireCommentDeletable(userId: Long, postId: Long, commentId: Long, role: GroupRole) {
+        val row = commentMapper.findFeedRowById(commentId, postId) ?: throw CommentNotFoundException()
+        if (row.userId != userId && role != GroupRole.OWNER) throw ForbiddenException()
     }
 }

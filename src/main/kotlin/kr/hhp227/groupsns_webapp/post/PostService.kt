@@ -5,6 +5,7 @@ import kr.hhp227.groupsns_webapp.common.exception.ForbiddenException
 import kr.hhp227.groupsns_webapp.common.exception.GroupNotFoundException
 import kr.hhp227.groupsns_webapp.common.exception.PostNotFoundException
 import kr.hhp227.groupsns_webapp.group.GroupMapper
+import kr.hhp227.groupsns_webapp.group.GroupRole
 import kr.hhp227.groupsns_webapp.group.UserGroupMapper
 import kr.hhp227.groupsns_webapp.notification.NotificationService
 import kr.hhp227.groupsns_webapp.notification.NotificationTargetType
@@ -83,8 +84,8 @@ class PostService(
     @Transactional
     fun deletePost(userId: Long, groupId: Long, postId: Long) {
         dbSessionMapper.setCurrentUserId(userId)
-        requireMembership(userId, groupId)
-        requirePostOwner(userId, groupId, postId)
+        val role = requireMembership(userId, groupId)
+        requirePostDeletable(userId, groupId, postId, role)
         postMapper.softDelete(postId)
     }
 
@@ -94,12 +95,17 @@ class PostService(
         return PostResponse.from(row, images)
     }
 
-    private fun requireMembership(userId: Long, groupId: Long) {
+    private fun requireMembership(userId: Long, groupId: Long): GroupRole =
         userGroupMapper.findRole(userId, groupId) ?: throw GroupNotFoundException()
-    }
 
     private fun requirePostOwner(userId: Long, groupId: Long, postId: Long) {
         val post = postMapper.findById(postId)?.takeIf { it.groupId == groupId } ?: throw PostNotFoundException()
         if (post.userId != userId) throw ForbiddenException()
+    }
+
+    // 삭제는 작성자 본인 또는 그룹 방장(OWNER)이 할 수 있다. 수정(requirePostOwner)은 그대로 작성자 본인만 허용.
+    private fun requirePostDeletable(userId: Long, groupId: Long, postId: Long, role: GroupRole) {
+        val post = postMapper.findById(postId)?.takeIf { it.groupId == groupId } ?: throw PostNotFoundException()
+        if (post.userId != userId && role != GroupRole.OWNER) throw ForbiddenException()
     }
 }
