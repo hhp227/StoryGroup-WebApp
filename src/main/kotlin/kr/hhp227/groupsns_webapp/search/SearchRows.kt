@@ -39,3 +39,10 @@ data class MessageSearchRow(
     val message: String,
     val createdAt: OffsetDateTime
 )
+
+data class UserSearchRow(
+    val id: Long,
+    val name: String,
+    val profileImg: String?,
+    val statusMessage: String?
+)

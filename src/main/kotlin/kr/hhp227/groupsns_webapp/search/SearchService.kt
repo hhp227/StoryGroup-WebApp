@@ -6,6 +6,7 @@ import kr.hhp227.groupsns_webapp.search.dto.GroupSearchResult
 import kr.hhp227.groupsns_webapp.search.dto.MessageSearchResult
 import kr.hhp227.groupsns_webapp.search.dto.PostSearchResult
 import kr.hhp227.groupsns_webapp.search.dto.SearchResponse
+import kr.hhp227.groupsns_webapp.search.dto.UserSearchResult
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -25,7 +26,8 @@ class SearchService(
             groups = searchMapper.searchGroups(userId, query, limit).map { GroupSearchResult.from(it) },
             posts = searchMapper.searchPosts(userId, query, limit).map { PostSearchResult.from(it) },
             files = searchMapper.searchFiles(userId, query, limit).map { FileSearchResult.from(it) },
-            messages = searchMapper.searchMessages(userId, query, limit).map { MessageSearchResult.from(it) }
+            messages = searchMapper.searchMessages(userId, query, limit).map { MessageSearchResult.from(it) },
+            users = searchMapper.searchUsers(userId, query, limit).map { UserSearchResult.from(it) }
         )
     }
 

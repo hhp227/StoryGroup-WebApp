@@ -4,6 +4,7 @@ import kr.hhp227.groupsns_webapp.search.FileSearchRow
 import kr.hhp227.groupsns_webapp.search.GroupSearchRow
 import kr.hhp227.groupsns_webapp.search.MessageSearchRow
 import kr.hhp227.groupsns_webapp.search.PostSearchRow
+import kr.hhp227.groupsns_webapp.search.UserSearchRow
 import java.time.OffsetDateTime
 
 data class GroupSearchResult(
@@ -60,9 +61,21 @@ data class MessageSearchResult(
     }
 }
 
+data class UserSearchResult(
+    val id: Long,
+    val name: String,
+    val profileImg: String?,
+    val statusMessage: String?
+) {
+    companion object {
+        fun from(row: UserSearchRow) = UserSearchResult(row.id, row.name, row.profileImg, row.statusMessage)
+    }
+}
+
 data class SearchResponse(
     val groups: List<GroupSearchResult>,
     val posts: List<PostSearchResult>,
     val files: List<FileSearchResult>,
-    val messages: List<MessageSearchResult>
+    val messages: List<MessageSearchResult>,
+    val users: List<UserSearchResult>
 )

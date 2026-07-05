@@ -72,4 +72,19 @@ interface SearchMapper {
         """
     )
     fun searchMessages(@Param("userId") userId: Long, @Param("query") query: String, @Param("limit") limit: Int): List<MessageSearchRow>
+
+    // 폐쇄형 SNS 특성상 전체 사용자 검색이 아니라 "나와 같은 그룹에 속한" 사용자만 노출한다(자신 제외).
+    @Select(
+        """
+        SELECT DISTINCT u.id, u.name, u.profile_img, u.status_message
+        FROM users u
+        JOIN user_groups ug ON ug.user_id = u.id
+        JOIN user_groups mine ON mine.group_id = ug.group_id AND mine.user_id = #{userId}
+        WHERE u.id != #{userId} AND u.deleted_at IS NULL
+          AND u.name ILIKE '%' || #{query} || '%'
+        ORDER BY u.name ASC
+        LIMIT #{limit}
+        """
+    )
+    fun searchUsers(@Param("userId") userId: Long, @Param("query") query: String, @Param("limit") limit: Int): List<UserSearchRow>
 }
