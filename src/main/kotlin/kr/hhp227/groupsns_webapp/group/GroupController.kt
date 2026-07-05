@@ -6,6 +6,7 @@ import kr.hhp227.groupsns_webapp.group.dto.GroupResponse
 import kr.hhp227.groupsns_webapp.group.dto.InviteResponse
 import kr.hhp227.groupsns_webapp.group.dto.MemberResponse
 import kr.hhp227.groupsns_webapp.group.dto.UpdateGroupRequest
+import kr.hhp227.groupsns_webapp.group.dto.UpdateMemberRoleRequest
 import kr.hhp227.groupsns_webapp.security.UserPrincipal
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -75,6 +76,17 @@ class GroupController(private val groupService: GroupService) {
         @PathVariable userId: Long
     ): ResponseEntity<Void> {
         groupService.kickMember(principal.id, groupId, userId)
+        return ResponseEntity.noContent().build()
+    }
+
+    @PatchMapping("/{groupId}/members/{userId}/role")
+    fun updateMemberRole(
+        @AuthenticationPrincipal principal: UserPrincipal,
+        @PathVariable groupId: Long,
+        @PathVariable userId: Long,
+        @Valid @RequestBody request: UpdateMemberRoleRequest
+    ): ResponseEntity<Void> {
+        groupService.updateMemberRole(principal.id, groupId, userId, request.role)
         return ResponseEntity.noContent().build()
     }
 

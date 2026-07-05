@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Insert
 import org.apache.ibatis.annotations.Mapper
 import org.apache.ibatis.annotations.Param
 import org.apache.ibatis.annotations.Select
+import org.apache.ibatis.annotations.Update
 
 @Mapper
 interface UserGroupMapper {
@@ -17,6 +18,13 @@ interface UserGroupMapper {
 
     @Select("SELECT role FROM user_groups WHERE user_id = #{userId} AND group_id = #{groupId}")
     fun findRole(@Param("userId") userId: Long, @Param("groupId") groupId: Long): GroupRole?
+
+    @Update("UPDATE user_groups SET role = #{role} WHERE user_id = #{userId} AND group_id = #{groupId}")
+    fun updateRole(
+        @Param("userId") userId: Long,
+        @Param("groupId") groupId: Long,
+        @Param("role") role: GroupRole
+    ): Int
 
     @Delete("DELETE FROM user_groups WHERE user_id = #{userId} AND group_id = #{groupId}")
     fun delete(@Param("userId") userId: Long, @Param("groupId") groupId: Long): Int

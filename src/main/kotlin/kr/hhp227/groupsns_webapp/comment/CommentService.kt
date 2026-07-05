@@ -100,9 +100,9 @@ class CommentService(
         if (row.userId != userId) throw ForbiddenException()
     }
 
-    // 삭제는 작성자 본인 또는 그룹 방장(OWNER)이 할 수 있다. 수정(requireCommentOwner)은 그대로 작성자 본인만 허용.
+    // 삭제는 작성자 본인 또는 방장/부방장이 할 수 있다. 수정(requireCommentOwner)은 그대로 작성자 본인만 허용.
     private fun requireCommentDeletable(userId: Long, postId: Long, commentId: Long, role: GroupRole) {
         val row = commentMapper.findFeedRowById(commentId, postId) ?: throw CommentNotFoundException()
-        if (row.userId != userId && role != GroupRole.OWNER) throw ForbiddenException()
+        if (row.userId != userId && !role.isModerator) throw ForbiddenException()
     }
 }

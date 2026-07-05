@@ -3,7 +3,11 @@ package kr.hhp227.groupsns_webapp.group
 import java.time.OffsetDateTime
 
 enum class GroupRole {
-    OWNER, MEMBER
+    OWNER, ADMIN, MEMBER;
+
+    // 방장(OWNER)/부방장(ADMIN) 공통의 조정 권한 - 남의 게시글/댓글 삭제, 공지 지정, 초대, 강퇴.
+    val isModerator: Boolean
+        get() = this != MEMBER
 }
 
 data class GroupWithRoleRow(

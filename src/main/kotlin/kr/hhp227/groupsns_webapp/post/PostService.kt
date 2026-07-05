@@ -47,12 +47,12 @@ class PostService(
         notificationService.notifyAll(recipientIds, type, NotificationTargetType.POST, postId)
     }
 
-    // 공지 지정/해제는 방장 전용(PRD 8번 "공지: 관리자만 작성"). 지정 시에만 NOTICE 알림을 보낸다.
+    // 공지 지정/해제는 방장/부방장 전용(PRD 8번 "공지: 관리자만 작성"). 지정 시에만 NOTICE 알림을 보낸다.
     @Transactional
     fun setNotice(userId: Long, groupId: Long, postId: Long, notice: Boolean): PostResponse {
         dbSessionMapper.setCurrentUserId(userId)
         val role = requireMembership(userId, groupId)
-        if (role != GroupRole.OWNER) throw ForbiddenException("공지는 방장만 지정할 수 있습니다")
+        if (!role.isModerator) throw ForbiddenException("공지는 방장/부방장만 지정할 수 있습니다")
         postMapper.findById(postId)?.takeIf { it.groupId == groupId } ?: throw PostNotFoundException()
 
         val updated = postMapper.setNotice(postId, notice)
@@ -117,9 +117,9 @@ class PostService(
         if (post.userId != userId) throw ForbiddenException()
     }
 
-    // 삭제는 작성자 본인 또는 그룹 방장(OWNER)이 할 수 있다. 수정(requirePostOwner)은 그대로 작성자 본인만 허용.
+    // 삭제는 작성자 본인 또는 방장/부방장이 할 수 있다. 수정(requirePostOwner)은 그대로 작성자 본인만 허용.
     private fun requirePostDeletable(userId: Long, groupId: Long, postId: Long, role: GroupRole) {
         val post = postMapper.findById(postId)?.takeIf { it.groupId == groupId } ?: throw PostNotFoundException()
-        if (post.userId != userId && role != GroupRole.OWNER) throw ForbiddenException()
+        if (post.userId != userId && !role.isModerator) throw ForbiddenException()
     }
 }

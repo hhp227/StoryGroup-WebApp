@@ -85,7 +85,7 @@ class GroupService(
     @Transactional
     fun createInvite(userId: Long, groupId: Long, request: CreateInviteRequest): InviteResponse {
         dbSessionMapper.setCurrentUserId(userId)
-        requireOwner(userId, groupId)
+        requireModerator(userId, groupId)
 
         val expiresAt = request.expiresInDays?.let { OffsetDateTime.now().plusDays(it.toLong()) }
         val code = generateUniqueInviteCode()
@@ -119,13 +119,30 @@ class GroupService(
     @Transactional
     fun kickMember(userId: Long, groupId: Long, targetUserId: Long) {
         dbSessionMapper.setCurrentUserId(userId)
-        requireOwner(userId, groupId)
+        val myRole = requireModerator(userId, groupId)
         requireNotLounge(groupId, "라운지에서는 멤버를 강퇴할 수 없습니다")
         if (targetUserId == userId) {
-            throw IllegalArgumentException("자기 자신은 강퇴할 수 없습니다. 그룹 삭제를 이용하세요")
+            throw IllegalArgumentException("자기 자신은 강퇴할 수 없습니다. 그룹 탈퇴/삭제를 이용하세요")
         }
-        val removed = userGroupMapper.delete(targetUserId, groupId)
-        if (removed == 0) throw GroupMemberNotFoundException()
+        val targetRole = userGroupMapper.findRole(targetUserId, groupId) ?: throw GroupMemberNotFoundException()
+        // 계층 준수: 방장은 부방장/멤버를, 부방장은 멤버만 내보낼 수 있다.
+        if (targetRole == GroupRole.OWNER || (myRole == GroupRole.ADMIN && targetRole != GroupRole.MEMBER)) {
+            throw ForbiddenException()
+        }
+        userGroupMapper.delete(targetUserId, groupId)
+    }
+
+    // 등급 변경은 방장 전용. OWNER 지정(소유권 이전)은 별도 기능으로 미지원.
+    @Transactional
+    fun updateMemberRole(userId: Long, groupId: Long, targetUserId: Long, newRole: GroupRole) {
+        dbSessionMapper.setCurrentUserId(userId)
+        requireOwner(userId, groupId)
+        requireNotLounge(groupId, "라운지에서는 등급을 변경할 수 없습니다")
+        if (newRole == GroupRole.OWNER) throw IllegalArgumentException("방장 권한은 등급 변경으로 넘길 수 없습니다")
+        if (targetUserId == userId) throw IllegalArgumentException("자신의 등급은 변경할 수 없습니다")
+        val targetRole = userGroupMapper.findRole(targetUserId, groupId) ?: throw GroupMemberNotFoundException()
+        if (targetRole == GroupRole.OWNER) throw ForbiddenException()
+        userGroupMapper.updateRole(targetUserId, groupId, newRole)
     }
 
     @Transactional
@@ -144,6 +161,12 @@ class GroupService(
 
     private fun requireOwner(userId: Long, groupId: Long) {
         if (requireMembership(userId, groupId) != GroupRole.OWNER) throw ForbiddenException()
+    }
+
+    private fun requireModerator(userId: Long, groupId: Long): GroupRole {
+        val role = requireMembership(userId, groupId)
+        if (!role.isModerator) throw ForbiddenException()
+        return role
     }
 
     private fun requireNotLounge(groupId: Long, message: String) {

@@ -69,6 +69,10 @@ data class GroupResponse(
     }
 }
 
+data class UpdateMemberRoleRequest(
+    val role: GroupRole
+)
+
 data class CreateInviteRequest(
     @field:Min(1) val maxUses: Int? = null,
     @field:Min(1) @field:Max(365) val expiresInDays: Int? = null
