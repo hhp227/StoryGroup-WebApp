@@ -3,6 +3,7 @@ package kr.hhp227.groupsns_webapp.user
 import org.apache.ibatis.annotations.Insert
 import org.apache.ibatis.annotations.Mapper
 import org.apache.ibatis.annotations.Options
+import org.apache.ibatis.annotations.Param
 import org.apache.ibatis.annotations.Select
 import org.apache.ibatis.annotations.Update
 
@@ -41,4 +42,7 @@ interface UserMapper {
         """
     )
     fun updateProfile(update: UserProfileUpdate): Int
+
+    @Update("UPDATE users SET password_hash = #{passwordHash} WHERE id = #{id} AND deleted_at IS NULL")
+    fun updatePassword(@Param("id") id: Long, @Param("passwordHash") passwordHash: String): Int
 }

@@ -28,4 +28,8 @@ interface RefreshTokenMapper {
 
     @Update("UPDATE refresh_tokens SET revoked_at = now() WHERE id = #{id} AND revoked_at IS NULL")
     fun revoke(id: Long): Int
+
+    // 비밀번호 변경 시 모든 기기의 세션을 끊기 위한 일괄 무효화
+    @Update("UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = #{userId} AND revoked_at IS NULL")
+    fun revokeAllForUser(userId: Long): Int
 }
