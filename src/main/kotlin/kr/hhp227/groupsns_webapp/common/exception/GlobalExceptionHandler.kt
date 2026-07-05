@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.multipart.MaxUploadSizeExceededException
 
 data class ErrorResponse(val code: String, val message: String)
 
@@ -71,4 +72,9 @@ class GlobalExceptionHandler {
         val message = ex.bindingResult.fieldErrors.joinToString("; ") { "${it.field}: ${it.defaultMessage}" }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ErrorResponse("VALIDATION_ERROR", message))
     }
+
+    @ExceptionHandler(MaxUploadSizeExceededException::class)
+    fun handleMaxUploadSize(ex: MaxUploadSizeExceededException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+            .body(ErrorResponse("FILE_TOO_LARGE", "파일이 너무 큽니다 (최대 20MB)"))
 }

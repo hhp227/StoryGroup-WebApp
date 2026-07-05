@@ -4,6 +4,7 @@ import kr.hhp227.groupsns_webapp.file.dto.CreateFileRequest
 import kr.hhp227.groupsns_webapp.file.dto.FileResponse
 import kr.hhp227.groupsns_webapp.security.UserPrincipal
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
 import javax.validation.Valid
 
 @RestController
@@ -27,6 +29,15 @@ class FileController(private val fileService: FileService) {
         @Valid @RequestBody request: CreateFileRequest
     ): ResponseEntity<FileResponse> =
         ResponseEntity.status(HttpStatus.CREATED).body(fileService.uploadFile(principal.id, groupId, request))
+
+    // 실제 바이너리 업로드(multipart). 위의 URL 메타데이터 등록과 별개 경로로 둔다.
+    @PostMapping("/upload", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun uploadBinaryFile(
+        @AuthenticationPrincipal principal: UserPrincipal,
+        @PathVariable groupId: Long,
+        @RequestParam("file") file: MultipartFile
+    ): ResponseEntity<FileResponse> =
+        ResponseEntity.status(HttpStatus.CREATED).body(fileService.uploadBinaryFile(principal.id, groupId, file))
 
     @GetMapping
     fun listFiles(
