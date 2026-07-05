@@ -36,4 +36,16 @@ class NotificationService(
         dbSessionMapper.setCurrentUserId(userId)
         notificationMapper.markAllAsRead(userId)
     }
+
+    // 다른 도메인 서비스(Post/Comment/Like/Meeting 등)가 이벤트 발생 시 호출한다.
+    // 이미 열려 있는 그 서비스의 트랜잭션에 합류하므로 setCurrentUserId를 다시 호출할 필요가 없다.
+    @Transactional
+    fun notify(recipientId: Long, type: NotificationType, targetType: NotificationTargetType?, targetId: Long?) {
+        notificationMapper.insert(NewNotificationRecord(recipientId, type, targetType, targetId))
+    }
+
+    @Transactional
+    fun notifyAll(recipientIds: Collection<Long>, type: NotificationType, targetType: NotificationTargetType?, targetId: Long?) {
+        recipientIds.forEach { notify(it, type, targetType, targetId) }
+    }
 }

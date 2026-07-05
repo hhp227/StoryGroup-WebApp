@@ -9,6 +9,9 @@ import kr.hhp227.groupsns_webapp.common.exception.ForbiddenException
 import kr.hhp227.groupsns_webapp.common.exception.GroupNotFoundException
 import kr.hhp227.groupsns_webapp.common.exception.PostNotFoundException
 import kr.hhp227.groupsns_webapp.group.UserGroupMapper
+import kr.hhp227.groupsns_webapp.notification.NotificationService
+import kr.hhp227.groupsns_webapp.notification.NotificationTargetType
+import kr.hhp227.groupsns_webapp.notification.NotificationType
 import kr.hhp227.groupsns_webapp.post.PostMapper
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -19,20 +22,26 @@ class CommentService(
     private val userReplyMapper: UserReplyMapper,
     private val postMapper: PostMapper,
     private val userGroupMapper: UserGroupMapper,
+    private val notificationService: NotificationService,
     private val dbSessionMapper: DbSessionMapper
 ) {
     @Transactional
     fun createComment(userId: Long, groupId: Long, postId: Long, request: CreateCommentRequest): CommentResponse {
         dbSessionMapper.setCurrentUserId(userId)
         requireMembership(userId, groupId)
-        requirePostExists(groupId, postId)
-        request.parentReplyId?.let { parentId ->
+        val post = requirePostExists(groupId, postId)
+        val parent = request.parentReplyId?.let { parentId ->
             commentMapper.findFeedRowById(parentId, postId) ?: throw CommentNotFoundException()
         }
 
         val record = NewReplyRecord(userId, request.parentReplyId, request.text)
         commentMapper.insert(record)
         userReplyMapper.insert(NewUserReplyRecord(record.id, userId, postId))
+
+        // 원글 작성자 + (대댓글이면) 부모 댓글 작성자에게 알림. 본인 글/댓글에는 알리지 않고, 중복 수신도 막는다.
+        setOfNotNull(post.userId, parent?.userId)
+            .filter { it != userId }
+            .forEach { notificationService.notify(it, NotificationType.COMMENT, NotificationTargetType.REPLY, record.id) }
 
         return loadComment(record.id, postId)
     }
@@ -83,9 +92,8 @@ class CommentService(
         userGroupMapper.findRole(userId, groupId) ?: throw GroupNotFoundException()
     }
 
-    private fun requirePostExists(groupId: Long, postId: Long) {
+    private fun requirePostExists(groupId: Long, postId: Long) =
         postMapper.findById(postId)?.takeIf { it.groupId == groupId } ?: throw PostNotFoundException()
-    }
 
     private fun requireCommentOwner(userId: Long, postId: Long, commentId: Long) {
         val row = commentMapper.findFeedRowById(commentId, postId) ?: throw CommentNotFoundException()

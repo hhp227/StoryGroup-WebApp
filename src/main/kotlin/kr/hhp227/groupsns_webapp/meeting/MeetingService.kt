@@ -4,9 +4,13 @@ import kr.hhp227.groupsns_webapp.common.db.DbSessionMapper
 import kr.hhp227.groupsns_webapp.common.exception.ForbiddenException
 import kr.hhp227.groupsns_webapp.common.exception.GroupNotFoundException
 import kr.hhp227.groupsns_webapp.common.exception.MeetingNotFoundException
+import kr.hhp227.groupsns_webapp.group.GroupMapper
 import kr.hhp227.groupsns_webapp.group.UserGroupMapper
 import kr.hhp227.groupsns_webapp.meeting.dto.MeetingResponse
 import kr.hhp227.groupsns_webapp.meeting.dto.ParticipantResponse
+import kr.hhp227.groupsns_webapp.notification.NotificationService
+import kr.hhp227.groupsns_webapp.notification.NotificationTargetType
+import kr.hhp227.groupsns_webapp.notification.NotificationType
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -15,6 +19,8 @@ class MeetingService(
     private val meetingMapper: MeetingMapper,
     private val participantMapper: MeetingParticipantMapper,
     private val userGroupMapper: UserGroupMapper,
+    private val groupMapper: GroupMapper,
+    private val notificationService: NotificationService,
     private val dbSessionMapper: DbSessionMapper
 ) {
     @Transactional
@@ -26,8 +32,18 @@ class MeetingService(
         meetingMapper.insert(record)
         participantMapper.insert(NewParticipantRecord(record.id, userId))
 
+        notifyOtherMembers(userId, groupId, record.id)
+
         val meeting = meetingMapper.findById(record.id) ?: throw MeetingNotFoundException()
         return MeetingResponse.from(meeting)
+    }
+
+    // 라운지는 전 회원이 자동 가입돼 있어 회의 시작마다 전체에게 알리면 스팸이 되므로 제외한다.
+    private fun notifyOtherMembers(hostId: Long, groupId: Long, meetingId: Long) {
+        val group = groupMapper.findById(groupId) ?: return
+        if (group.isLounge) return
+        val recipientIds = userGroupMapper.findMembers(groupId).map { it.userId }.filter { it != hostId }
+        notificationService.notifyAll(recipientIds, NotificationType.MEETING_STARTED, NotificationTargetType.MEETING, meetingId)
     }
 
     @Transactional

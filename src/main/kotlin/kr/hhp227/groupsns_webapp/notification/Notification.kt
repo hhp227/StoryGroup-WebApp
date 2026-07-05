@@ -19,3 +19,10 @@ data class Notification(
     val isRead: Boolean,
     val createdAt: OffsetDateTime
 )
+
+class NewNotificationRecord(
+    val userId: Long,
+    val type: NotificationType,
+    val targetType: NotificationTargetType?,
+    val targetId: Long?
+)
