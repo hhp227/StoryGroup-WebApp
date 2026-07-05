@@ -66,8 +66,10 @@ class FileService(
     fun deleteFile(userId: Long, groupId: Long, fileId: Long) {
         dbSessionMapper.setCurrentUserId(userId)
         requireMembership(userId, groupId)
-        requireFileOwner(userId, groupId, fileId)
+        val file = requireFileOwner(userId, groupId, fileId)
         fileMapper.softDelete(fileId)
+        // 메타데이터 삭제 후 실제 스토리지 객체도 정리(우리 버킷 URL일 때만, 실패해도 무시)
+        storageService.deleteByPublicUrl(file.url)
     }
 
     private fun loadFile(fileId: Long, groupId: Long): FileResponse {
@@ -79,8 +81,9 @@ class FileService(
         userGroupMapper.findRole(userId, groupId) ?: throw GroupNotFoundException()
     }
 
-    private fun requireFileOwner(userId: Long, groupId: Long, fileId: Long) {
+    private fun requireFileOwner(userId: Long, groupId: Long, fileId: Long): GroupFile {
         val file = fileMapper.findById(fileId)?.takeIf { it.groupId == groupId } ?: throw GroupFileNotFoundException()
         if (file.userId != userId) throw ForbiddenException()
+        return file
     }
 }

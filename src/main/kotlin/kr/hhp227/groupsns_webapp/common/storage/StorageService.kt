@@ -6,6 +6,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
+import org.springframework.web.client.RestClientException
 import org.springframework.web.client.RestTemplate
 
 // Supabase Storage 업로드. 클라이언트가 직접 올리지 않고 서버를 경유하는 이유:
@@ -36,6 +37,28 @@ class StorageService(
             String::class.java
         )
         return "$storageUrl/storage/v1/object/public/$bucket/$path"
+    }
+
+    // 우리 버킷의 공개 URL이면 실제 객체도 지운다(best-effort). URL로 등록된 외부 파일은 건드리지 않고,
+    // 메타데이터 삭제는 이미 끝난 뒤라 스토리지 정리가 실패해도 무시한다(고아 객체는 추후 배치 정리 대상).
+    fun deleteByPublicUrl(url: String) {
+        val prefix = "$storageUrl/storage/v1/object/public/$bucket/"
+        if (serviceKey.isBlank() || !url.startsWith(prefix)) return
+        val path = url.removePrefix(prefix)
+        try {
+            val headers = HttpHeaders().apply {
+                set("apikey", serviceKey)
+                setBearerAuth(serviceKey)
+            }
+            restTemplate.exchange(
+                "$storageUrl/storage/v1/object/$bucket/$path",
+                HttpMethod.DELETE,
+                HttpEntity<Void>(headers),
+                String::class.java
+            )
+        } catch (e: RestClientException) {
+            // 무시 - 위 주석 참고
+        }
     }
 
     private fun parseContentTypeOrDefault(contentType: String?): MediaType =
