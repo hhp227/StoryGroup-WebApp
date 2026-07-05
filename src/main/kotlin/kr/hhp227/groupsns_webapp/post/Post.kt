@@ -33,5 +33,6 @@ data class PostFeedRow(
     val authorName: String,
     val authorProfileImg: String?,
     val text: String,
+    val isNotice: Boolean,
     val createdAt: OffsetDateTime
 )

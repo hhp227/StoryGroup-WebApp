@@ -33,10 +33,14 @@ interface PostMapper {
     @Update("UPDATE posts SET deleted_at = now() WHERE id = #{id} AND deleted_at IS NULL")
     fun softDelete(id: Long): Int
 
+    // 공지 지정/해제. is_notice(공지 표시)와 is_pinned(상단 고정)는 현재 항상 함께 움직인다.
+    @Update("UPDATE posts SET is_notice = #{notice}, is_pinned = #{notice} WHERE id = #{id} AND deleted_at IS NULL")
+    fun setNotice(@Param("id") id: Long, @Param("notice") notice: Boolean): Int
+
     @Select(
         """
         SELECT p.id, p.group_id, p.user_id, u.name AS author_name, u.profile_img AS author_profile_img,
-               p.text, p.created_at
+               p.text, p.is_notice, p.created_at
         FROM posts p
         JOIN users u ON u.id = p.user_id
         WHERE p.id = #{id} AND p.group_id = #{groupId} AND p.deleted_at IS NULL
@@ -47,11 +51,11 @@ interface PostMapper {
     @Select(
         """
         SELECT p.id, p.group_id, p.user_id, u.name AS author_name, u.profile_img AS author_profile_img,
-               p.text, p.created_at
+               p.text, p.is_notice, p.created_at
         FROM posts p
         JOIN users u ON u.id = p.user_id
         WHERE p.group_id = #{groupId} AND p.deleted_at IS NULL
-        ORDER BY p.created_at DESC
+        ORDER BY p.is_pinned DESC, p.created_at DESC
         LIMIT #{limit} OFFSET #{offset}
         """
     )

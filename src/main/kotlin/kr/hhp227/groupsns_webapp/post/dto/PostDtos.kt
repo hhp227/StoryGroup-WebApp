@@ -34,6 +34,7 @@ data class PostResponse(
     val authorProfileImg: String?,
     val text: String,
     val images: List<ImageResponse>,
+    val isNotice: Boolean,
     val createdAt: OffsetDateTime
 ) {
     companion object {
@@ -45,6 +46,7 @@ data class PostResponse(
             authorProfileImg = row.authorProfileImg,
             text = row.text,
             images = images.map { ImageResponse.from(it) },
+            isNotice = row.isNotice,
             createdAt = row.createdAt
         )
     }

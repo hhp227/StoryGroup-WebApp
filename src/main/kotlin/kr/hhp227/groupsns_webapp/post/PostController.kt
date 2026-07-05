@@ -62,4 +62,18 @@ class PostController(private val postService: PostService) {
         postService.deletePost(principal.id, groupId, postId)
         return ResponseEntity.noContent().build()
     }
+
+    @PostMapping("/{postId}/notice")
+    fun setNotice(
+        @AuthenticationPrincipal principal: UserPrincipal,
+        @PathVariable groupId: Long,
+        @PathVariable postId: Long
+    ): PostResponse = postService.setNotice(principal.id, groupId, postId, true)
+
+    @DeleteMapping("/{postId}/notice")
+    fun unsetNotice(
+        @AuthenticationPrincipal principal: UserPrincipal,
+        @PathVariable groupId: Long,
+        @PathVariable postId: Long
+    ): PostResponse = postService.setNotice(principal.id, groupId, postId, false)
 }
