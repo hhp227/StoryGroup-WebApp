@@ -34,7 +34,9 @@ class SecurityConfig(
             .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             .and()
             .authorizeRequests()
-            .antMatchers("/", "/api/auth/**").permitAll()
+            // /ws는 WebSocket handshake — 브라우저 WS API가 Authorization 헤더를 못 실어서
+            // 여기선 열어두고, 실제 인증은 STOMP CONNECT 프레임에서 한다(StompAuthChannelInterceptor).
+            .antMatchers("/", "/api/auth/**", "/ws/**").permitAll()
             .anyRequest().authenticated()
             .and()
             .addFilterBefore(
