@@ -28,7 +28,7 @@ class WebSocketConfig(
         // (설계 문서 D2, 확장 시 ChatEventBroadcaster를 릴레이 구현으로 교체).
         registry.enableSimpleBroker("/topic")
             .setHeartbeatValue(longArrayOf(10_000, 10_000))
-            .setTaskScheduler(messageBrokerTaskScheduler())
+            .setTaskScheduler(wsHeartbeatTaskScheduler())
         // 이번 마일스톤엔 @MessageMapping이 없지만 Typing 등 후속 기능(D7)이 쓸 prefix.
         registry.setApplicationDestinationPrefixes("/app")
     }
@@ -37,8 +37,10 @@ class WebSocketConfig(
         registration.interceptors(stompAuthChannelInterceptor)
     }
 
+    // 이름을 messageBrokerTaskScheduler로 지으면 Spring의 DelegatingWebSocketMessageBrokerConfiguration이
+    // 등록하는 동명 빈과 충돌해 기동이 실패한다(BeanDefinitionOverrideException, 2026-07-06 실제 발생).
     @Bean
-    fun messageBrokerTaskScheduler(): ThreadPoolTaskScheduler = ThreadPoolTaskScheduler().apply {
+    fun wsHeartbeatTaskScheduler(): ThreadPoolTaskScheduler = ThreadPoolTaskScheduler().apply {
         poolSize = 1
         setThreadNamePrefix("ws-heartbeat-")
         initialize()
