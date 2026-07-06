@@ -5,6 +5,7 @@ import kr.hhp227.groupsns_webapp.chat.dto.CreateChatRoomRequest
 import kr.hhp227.groupsns_webapp.chat.dto.CreateMessageRequest
 import kr.hhp227.groupsns_webapp.chat.dto.DirectRoomResponse
 import kr.hhp227.groupsns_webapp.chat.dto.MessageResponse
+import kr.hhp227.groupsns_webapp.chat.dto.ReadPositionResponse
 import kr.hhp227.groupsns_webapp.chat.dto.UpdateMessageRequest
 import kr.hhp227.groupsns_webapp.common.db.DbSessionMapper
 import kr.hhp227.groupsns_webapp.common.exception.ChatRoomNotFoundException
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional
 class ChatService(
     private val chatRoomMapper: ChatRoomMapper,
     private val messageMapper: MessageMapper,
+    private val chatRoomReadMapper: ChatRoomReadMapper,
     private val userGroupMapper: UserGroupMapper,
     private val dbSessionMapper: DbSessionMapper,
     // WebSocket 브로드캐스트는 ChatEventBroadcaster가 커밋 후에 처리 — 여기선 이벤트 발행만.
@@ -129,6 +131,46 @@ class ChatService(
         requireMessageOwner(userId, chatRoomId, messageId)
         messageMapper.softDelete(messageId)
         eventPublisher.publishEvent(ChatSocketEvent.deleted(chatRoomId, messageId))
+    }
+
+    @Transactional
+    fun markRead(userId: Long, groupId: Long, chatRoomId: Long, lastReadMessageId: Long) {
+        dbSessionMapper.setCurrentUserId(userId)
+        requireMembership(userId, groupId)
+        requireChatRoomExists(groupId, chatRoomId)
+        doMarkRead(userId, chatRoomId, lastReadMessageId)
+    }
+
+    @Transactional
+    fun listReads(userId: Long, groupId: Long, chatRoomId: Long): List<ReadPositionResponse> {
+        dbSessionMapper.setCurrentUserId(userId)
+        requireMembership(userId, groupId)
+        requireChatRoomExists(groupId, chatRoomId)
+        return chatRoomReadMapper.findByRoom(chatRoomId).map { ReadPositionResponse.from(it) }
+    }
+
+    @Transactional
+    fun markDirectRead(userId: Long, chatRoomId: Long, lastReadMessageId: Long) {
+        dbSessionMapper.setCurrentUserId(userId)
+        requireDirectRoomParticipant(userId, chatRoomId)
+        doMarkRead(userId, chatRoomId, lastReadMessageId)
+    }
+
+    @Transactional
+    fun listDirectReads(userId: Long, chatRoomId: Long): List<ReadPositionResponse> {
+        dbSessionMapper.setCurrentUserId(userId)
+        requireDirectRoomParticipant(userId, chatRoomId)
+        return chatRoomReadMapper.findByRoom(chatRoomId).map { ReadPositionResponse.from(it) }
+    }
+
+    private fun doMarkRead(userId: Long, chatRoomId: Long, lastReadMessageId: Long) {
+        // 읽음 위치는 이 방의 실존 메시지여야 한다 — 다른 방 메시지 id로 위치를 오염시키는 것 방지.
+        messageMapper.findById(lastReadMessageId)?.takeIf { it.chatRoomId == chatRoomId }
+            ?: throw MessageNotFoundException()
+        chatRoomReadMapper.upsert(chatRoomId, userId, lastReadMessageId)
+        // 방송은 요청 값이 아니라 GREATEST 적용 후의 실제 위치로 — 뒤늦은 요청이 과거 위치를 방송하지 않게.
+        val position = chatRoomReadMapper.findPosition(chatRoomId, userId) ?: lastReadMessageId
+        eventPublisher.publishEvent(ChatSocketEvent.read(chatRoomId, userId, position))
     }
 
     private fun loadMessage(messageId: Long, chatRoomId: Long): MessageResponse {

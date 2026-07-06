@@ -3,7 +3,9 @@ package kr.hhp227.groupsns_webapp.chat
 import kr.hhp227.groupsns_webapp.chat.dto.ChatRoomResponse
 import kr.hhp227.groupsns_webapp.chat.dto.CreateChatRoomRequest
 import kr.hhp227.groupsns_webapp.chat.dto.CreateMessageRequest
+import kr.hhp227.groupsns_webapp.chat.dto.MarkReadRequest
 import kr.hhp227.groupsns_webapp.chat.dto.MessageResponse
+import kr.hhp227.groupsns_webapp.chat.dto.ReadPositionResponse
 import kr.hhp227.groupsns_webapp.chat.dto.UpdateMessageRequest
 import kr.hhp227.groupsns_webapp.security.UserPrincipal
 import org.springframework.http.HttpStatus
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -73,4 +76,23 @@ class ChatController(private val chatService: ChatService) {
         chatService.deleteMessage(principal.id, groupId, chatRoomId, messageId)
         return ResponseEntity.noContent().build()
     }
+
+    // 읽음 위치 갱신은 멱등 업서트라 PUT.
+    @PutMapping("/{chatRoomId}/read")
+    fun markRead(
+        @AuthenticationPrincipal principal: UserPrincipal,
+        @PathVariable groupId: Long,
+        @PathVariable chatRoomId: Long,
+        @Valid @RequestBody request: MarkReadRequest
+    ): ResponseEntity<Void> {
+        chatService.markRead(principal.id, groupId, chatRoomId, request.lastReadMessageId)
+        return ResponseEntity.noContent().build()
+    }
+
+    @GetMapping("/{chatRoomId}/reads")
+    fun listReads(
+        @AuthenticationPrincipal principal: UserPrincipal,
+        @PathVariable groupId: Long,
+        @PathVariable chatRoomId: Long
+    ): List<ReadPositionResponse> = chatService.listReads(principal.id, groupId, chatRoomId)
 }
