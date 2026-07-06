@@ -12,6 +12,8 @@ import kr.hhp227.groupsns_webapp.common.exception.ForbiddenException
 import kr.hhp227.groupsns_webapp.common.exception.GroupNotFoundException
 import kr.hhp227.groupsns_webapp.common.exception.MessageNotFoundException
 import kr.hhp227.groupsns_webapp.group.UserGroupMapper
+import kr.hhp227.groupsns_webapp.realtime.ChatSocketEvent
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -20,7 +22,9 @@ class ChatService(
     private val chatRoomMapper: ChatRoomMapper,
     private val messageMapper: MessageMapper,
     private val userGroupMapper: UserGroupMapper,
-    private val dbSessionMapper: DbSessionMapper
+    private val dbSessionMapper: DbSessionMapper,
+    // WebSocket 브로드캐스트는 ChatEventBroadcaster가 커밋 후에 처리 — 여기선 이벤트 발행만.
+    private val eventPublisher: ApplicationEventPublisher
 ) {
     @Transactional
     fun createChatRoom(userId: Long, groupId: Long, request: CreateChatRoomRequest): ChatRoomResponse {
@@ -48,7 +52,7 @@ class ChatService(
 
         val record = NewMessageRecord(chatRoomId, userId, request.text)
         messageMapper.insert(record)
-        return loadMessage(record.id, chatRoomId)
+        return loadMessage(record.id, chatRoomId).also { eventPublisher.publishEvent(ChatSocketEvent.created(it)) }
     }
 
     @Transactional
@@ -68,7 +72,7 @@ class ChatService(
 
         val updated = messageMapper.update(MessageUpdate(messageId, request.text))
         if (updated == 0) throw MessageNotFoundException()
-        return loadMessage(messageId, chatRoomId)
+        return loadMessage(messageId, chatRoomId).also { eventPublisher.publishEvent(ChatSocketEvent.updated(it)) }
     }
 
     @Transactional
@@ -78,6 +82,7 @@ class ChatService(
         requireChatRoomExists(groupId, chatRoomId)
         requireMessageOwner(userId, chatRoomId, messageId)
         messageMapper.softDelete(messageId)
+        eventPublisher.publishEvent(ChatSocketEvent.deleted(chatRoomId, messageId))
     }
 
     @Transactional
@@ -107,7 +112,7 @@ class ChatService(
 
         val record = NewMessageRecord(chatRoomId, userId, request.text)
         messageMapper.insert(record)
-        return loadMessage(record.id, chatRoomId)
+        return loadMessage(record.id, chatRoomId).also { eventPublisher.publishEvent(ChatSocketEvent.created(it)) }
     }
 
     @Transactional
@@ -123,6 +128,7 @@ class ChatService(
         requireDirectRoomParticipant(userId, chatRoomId)
         requireMessageOwner(userId, chatRoomId, messageId)
         messageMapper.softDelete(messageId)
+        eventPublisher.publishEvent(ChatSocketEvent.deleted(chatRoomId, messageId))
     }
 
     private fun loadMessage(messageId: Long, chatRoomId: Long): MessageResponse {
