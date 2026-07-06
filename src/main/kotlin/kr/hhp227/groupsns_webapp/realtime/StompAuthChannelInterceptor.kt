@@ -3,6 +3,7 @@ package kr.hhp227.groupsns_webapp.realtime
 import io.jsonwebtoken.JwtException
 import kr.hhp227.groupsns_webapp.chat.ChatRoomMapper
 import kr.hhp227.groupsns_webapp.group.UserGroupMapper
+import kr.hhp227.groupsns_webapp.meeting.MeetingMapper
 import kr.hhp227.groupsns_webapp.security.JwtTokenProvider
 import kr.hhp227.groupsns_webapp.security.UserPrincipal
 import kr.hhp227.groupsns_webapp.user.UserMapper
@@ -25,7 +26,8 @@ class StompAuthChannelInterceptor(
     private val jwtTokenProvider: JwtTokenProvider,
     private val userMapper: UserMapper,
     private val chatRoomMapper: ChatRoomMapper,
-    private val userGroupMapper: UserGroupMapper
+    private val userGroupMapper: UserGroupMapper,
+    private val meetingMapper: MeetingMapper
 ) : ChannelInterceptor {
 
     override fun preSend(message: Message<*>, channel: MessageChannel): Message<*> {
@@ -58,21 +60,30 @@ class StompAuthChannelInterceptor(
     private fun authorizeSubscription(accessor: StompHeaderAccessor) {
         val principal = requirePrincipal(accessor)
         val destination = accessor.destination ?: throw AccessDeniedException("destination이 없습니다")
-        // 개인 알림 큐는 Spring이 세션별로 해석해 본인에게만 전달하므로 인증만으로 충분하다.
-        if (destination == USER_NOTIFICATIONS_DESTINATION) return
-        val roomId = TOPIC_PATTERN.matchEntire(destination)?.groupValues?.get(1)?.toLongOrNull()
-            ?: throw AccessDeniedException("허용되지 않은 destination입니다")
-        requireRoomAccess(principal, roomId)
+        // 개인 큐(알림/RTC 시그널)는 Spring이 세션별로 해석해 본인에게만 전달하므로 인증만으로 충분하다.
+        if (destination == USER_NOTIFICATIONS_DESTINATION || destination == USER_RTC_DESTINATION) return
+        TOPIC_PATTERN.matchEntire(destination)?.let {
+            return requireRoomAccess(principal, it.groupValues[1].toLong())
+        }
+        // RTC 통화방 구독 = 통화 입장(Phase 7 설계 문서 D3) — 회의/채팅방과 같은 접근권 검사.
+        RTC_TOPIC_PATTERN.matchEntire(destination)?.let {
+            return requireRtcRoomAccess(principal, it.groupValues[1], it.groupValues[2].toLong())
+        }
+        throw AccessDeniedException("허용되지 않은 destination입니다")
     }
 
     // SimpleBroker는 클라이언트가 /topic/**으로 직접 SEND한 프레임도 구독자에게 그대로 중계하므로,
-    // 화이트리스트(typing destination)에 없는 SEND는 전부 거부해 이벤트 위조를 막는다.
+    // 화이트리스트(typing/rtc destination)에 없는 SEND는 전부 거부해 이벤트 위조를 막는다.
     private fun authorizeSend(accessor: StompHeaderAccessor) {
         val principal = requirePrincipal(accessor)
         val destination = accessor.destination ?: throw AccessDeniedException("destination이 없습니다")
-        val roomId = TYPING_PATTERN.matchEntire(destination)?.groupValues?.get(1)?.toLongOrNull()
-            ?: throw AccessDeniedException("허용되지 않은 destination입니다")
-        requireRoomAccess(principal, roomId)
+        TYPING_PATTERN.matchEntire(destination)?.let {
+            return requireRoomAccess(principal, it.groupValues[1].toLong())
+        }
+        RTC_SEND_PATTERN.matchEntire(destination)?.let {
+            return requireRtcRoomAccess(principal, it.groupValues[1], it.groupValues[2].toLong())
+        }
+        throw AccessDeniedException("허용되지 않은 destination입니다")
     }
 
     private fun requirePrincipal(accessor: StompHeaderAccessor): UserPrincipal =
@@ -90,10 +101,27 @@ class StompAuthChannelInterceptor(
         if (!allowed) throw AccessDeniedException("접근할 수 없는 채팅방입니다")
     }
 
+    // RTC 통화방(kind = "meetings" | "chat-rooms") 접근권 — 채팅방의 404 은닉 원칙과 동일.
+    private fun requireRtcRoomAccess(principal: UserPrincipal, kind: String, id: Long) {
+        if (kind == "meetings") {
+            val meeting = meetingMapper.findById(id) ?: throw AccessDeniedException("접근할 수 없는 통화입니다")
+            // 종료된 회의의 통화방엔 새로 들어갈 수 없다(진행 중인 구독은 영향 없음 — 화면이 알아서 끊는다).
+            if (meeting.endedAt != null) throw AccessDeniedException("접근할 수 없는 통화입니다")
+            if (userGroupMapper.findRole(principal.id, meeting.groupId) == null) {
+                throw AccessDeniedException("접근할 수 없는 통화입니다")
+            }
+        } else {
+            requireRoomAccess(principal, id)
+        }
+    }
+
     companion object {
         private val TOPIC_PATTERN = Regex("""/topic/chat-rooms/(\d+)""")
         private val TYPING_PATTERN = Regex("""/app/chat-rooms/(\d+)/typing""")
+        private val RTC_TOPIC_PATTERN = Regex("""/topic/rtc/(meetings|chat-rooms)/(\d+)""")
+        private val RTC_SEND_PATTERN = Regex("""/app/rtc/(meetings|chat-rooms)/(\d+)/(?:signal|invite)""")
         private const val USER_NOTIFICATIONS_DESTINATION = "/user/queue/notifications"
+        private const val USER_RTC_DESTINATION = "/user/queue/rtc"
     }
 }
 
