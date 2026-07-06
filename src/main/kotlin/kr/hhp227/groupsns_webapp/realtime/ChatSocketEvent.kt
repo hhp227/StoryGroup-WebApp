@@ -2,7 +2,7 @@ package kr.hhp227.groupsns_webapp.realtime
 
 import kr.hhp227.groupsns_webapp.chat.dto.MessageResponse
 
-enum class ChatSocketEventType { MESSAGE_CREATED, MESSAGE_UPDATED, MESSAGE_DELETED, TYPING, PRESENCE }
+enum class ChatSocketEventType { MESSAGE_CREATED, MESSAGE_UPDATED, MESSAGE_DELETED, TYPING, PRESENCE, READ }
 
 // PRESENCE 이벤트에 실리는 "지금 이 방을 보고 있는 사람" 한 명.
 data class PresenceUser(val userId: Long, val userName: String)
@@ -36,5 +36,9 @@ data class ChatSocketEvent(
 
         fun presence(chatRoomId: Long, users: List<PresenceUser>) =
             ChatSocketEvent(ChatSocketEventType.PRESENCE, chatRoomId, users = users)
+
+        // messageId = 이 사용자가 마지막으로 읽은 메시지(그 이하 전부 읽음).
+        fun read(chatRoomId: Long, userId: Long, lastReadMessageId: Long) =
+            ChatSocketEvent(ChatSocketEventType.READ, chatRoomId, messageId = lastReadMessageId, userId = userId)
     }
 }

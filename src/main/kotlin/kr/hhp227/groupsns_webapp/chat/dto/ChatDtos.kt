@@ -1,10 +1,12 @@
 package kr.hhp227.groupsns_webapp.chat.dto
 
 import kr.hhp227.groupsns_webapp.chat.ChatRoom
+import kr.hhp227.groupsns_webapp.chat.ChatRoomRead
 import kr.hhp227.groupsns_webapp.chat.DirectRoomRow
 import kr.hhp227.groupsns_webapp.chat.MessageFeedRow
 import java.time.OffsetDateTime
 import javax.validation.constraints.NotBlank
+import javax.validation.constraints.Positive
 import javax.validation.constraints.Size
 
 data class CreateChatRoomRequest(
@@ -67,5 +69,18 @@ data class MessageResponse(
             text = row.message,
             createdAt = row.createdAt
         )
+    }
+}
+
+data class MarkReadRequest(
+    @field:Positive val lastReadMessageId: Long
+)
+
+data class ReadPositionResponse(
+    val userId: Long,
+    val lastReadMessageId: Long
+) {
+    companion object {
+        fun from(read: ChatRoomRead) = ReadPositionResponse(read.userId, read.lastReadMessageId)
     }
 }
