@@ -4,13 +4,17 @@ import kr.hhp227.groupsns_webapp.common.db.DbSessionMapper
 import kr.hhp227.groupsns_webapp.common.exception.NotificationNotFoundException
 import kr.hhp227.groupsns_webapp.notification.dto.NotificationResponse
 import kr.hhp227.groupsns_webapp.notification.dto.UnreadCountResponse
+import kr.hhp227.groupsns_webapp.realtime.NotificationSocketEvent
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
 class NotificationService(
     private val notificationMapper: NotificationMapper,
-    private val dbSessionMapper: DbSessionMapper
+    private val dbSessionMapper: DbSessionMapper,
+    // WS 개인 큐 전달은 NotificationBroadcaster가 커밋 후에 처리 — 여기선 이벤트 발행만.
+    private val eventPublisher: ApplicationEventPublisher
 ) {
     @Transactional
     fun listNotifications(userId: Long, page: Int, size: Int): List<NotificationResponse> {
@@ -41,7 +45,11 @@ class NotificationService(
     // 이미 열려 있는 그 서비스의 트랜잭션에 합류하므로 setCurrentUserId를 다시 호출할 필요가 없다.
     @Transactional
     fun notify(recipientId: Long, type: NotificationType, targetType: NotificationTargetType?, targetId: Long?) {
-        notificationMapper.insert(NewNotificationRecord(recipientId, type, targetType, targetId))
+        val record = NewNotificationRecord(recipientId, type, targetType, targetId)
+        notificationMapper.insert(record)
+        notificationMapper.findById(record.id)?.let {
+            eventPublisher.publishEvent(NotificationSocketEvent(recipientId, NotificationResponse.from(it)))
+        }
     }
 
     @Transactional

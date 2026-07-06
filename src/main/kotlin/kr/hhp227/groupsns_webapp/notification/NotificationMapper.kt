@@ -2,6 +2,7 @@ package kr.hhp227.groupsns_webapp.notification
 
 import org.apache.ibatis.annotations.Insert
 import org.apache.ibatis.annotations.Mapper
+import org.apache.ibatis.annotations.Options
 import org.apache.ibatis.annotations.Param
 import org.apache.ibatis.annotations.Select
 import org.apache.ibatis.annotations.Update
@@ -11,7 +12,11 @@ interface NotificationMapper {
     @Insert(
         "INSERT INTO notifications(user_id, type, target_type, target_id) VALUES(#{userId}, #{type}, #{targetType}, #{targetId})"
     )
+    @Options(useGeneratedKeys = true, keyProperty = "id")
     fun insert(record: NewNotificationRecord): Int
+
+    @Select("SELECT id, user_id, type, target_type, target_id, is_read, created_at FROM notifications WHERE id = #{id}")
+    fun findById(id: Long): Notification?
 
     @Select(
         """

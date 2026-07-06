@@ -26,7 +26,8 @@ class WebSocketConfig(
     override fun configureMessageBroker(registry: MessageBrokerRegistry) {
         // 인메모리 SimpleBroker — 인스턴스 간 팬아웃이 안 되므로 Cloud Run max-instances=1이 전제
         // (설계 문서 D2, 확장 시 ChatEventBroadcaster를 릴레이 구현으로 교체).
-        registry.enableSimpleBroker("/topic")
+        // /queue는 개인 큐(/user/queue/notifications, convertAndSendToUser) 라우팅용.
+        registry.enableSimpleBroker("/topic", "/queue")
             .setHeartbeatValue(longArrayOf(10_000, 10_000))
             .setTaskScheduler(wsHeartbeatTaskScheduler())
         // 이번 마일스톤엔 @MessageMapping이 없지만 Typing 등 후속 기능(D7)이 쓸 prefix.
