@@ -52,7 +52,7 @@ class ChatService(
         requireMembership(userId, groupId)
         requireChatRoomExists(groupId, chatRoomId)
 
-        val record = NewMessageRecord(chatRoomId, userId, request.text)
+        val record = buildNewMessage(chatRoomId, userId, request)
         messageMapper.insert(record)
         return loadMessage(record.id, chatRoomId).also { eventPublisher.publishEvent(ChatSocketEvent.created(it)) }
     }
@@ -112,7 +112,7 @@ class ChatService(
         dbSessionMapper.setCurrentUserId(userId)
         requireDirectRoomParticipant(userId, chatRoomId)
 
-        val record = NewMessageRecord(chatRoomId, userId, request.text)
+        val record = buildNewMessage(chatRoomId, userId, request)
         messageMapper.insert(record)
         return loadMessage(record.id, chatRoomId).also { eventPublisher.publishEvent(ChatSocketEvent.created(it)) }
     }
@@ -171,6 +171,24 @@ class ChatService(
         // 방송은 요청 값이 아니라 GREATEST 적용 후의 실제 위치로 — 뒤늦은 요청이 과거 위치를 방송하지 않게.
         val position = chatRoomReadMapper.findPosition(chatRoomId, userId) ?: lastReadMessageId
         eventPublisher.publishEvent(ChatSocketEvent.read(chatRoomId, userId, position))
+    }
+
+    // 그룹 채팅/DM 공용. 첨부만 있는 메시지는 text를 빈 문자열로 저장한다(V15 체크 제약과 짝).
+    private fun buildNewMessage(chatRoomId: Long, userId: Long, request: CreateMessageRequest): NewMessageRecord {
+        val text = request.text?.takeIf { it.isNotBlank() } ?: ""
+        val attachment = request.attachment
+        if (text.isEmpty() && attachment == null) {
+            throw IllegalArgumentException("메시지 내용이나 첨부 파일이 필요합니다")
+        }
+        return NewMessageRecord(
+            chatRoomId = chatRoomId,
+            userId = userId,
+            message = text,
+            attachmentUrl = attachment?.url,
+            attachmentName = attachment?.name?.take(255),
+            attachmentType = attachment?.contentType?.take(100),
+            attachmentSize = attachment?.size
+        )
     }
 
     private fun loadMessage(messageId: Long, chatRoomId: Long): MessageResponse {

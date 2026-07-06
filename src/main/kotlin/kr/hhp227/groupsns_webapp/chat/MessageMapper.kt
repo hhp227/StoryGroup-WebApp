@@ -12,7 +12,12 @@ interface MessageMapper {
     @Select("SELECT message_id AS id, chat_room_id, user_id, message, created_at, deleted_at FROM messages WHERE message_id = #{id} AND deleted_at IS NULL")
     fun findById(id: Long): Message?
 
-    @Insert("INSERT INTO messages(chat_room_id, user_id, message) VALUES(#{chatRoomId}, #{userId}, #{message})")
+    @Insert(
+        """
+        INSERT INTO messages(chat_room_id, user_id, message, attachment_url, attachment_name, attachment_type, attachment_size)
+        VALUES(#{chatRoomId}, #{userId}, #{message}, #{attachmentUrl}, #{attachmentName}, #{attachmentType}, #{attachmentSize})
+        """
+    )
     @Options(useGeneratedKeys = true, keyProperty = "id")
     fun insert(record: NewMessageRecord): Int
 
@@ -25,7 +30,7 @@ interface MessageMapper {
     @Select(
         """
         SELECT m.message_id AS id, m.chat_room_id, m.user_id, u.name AS author_name, u.profile_img AS author_profile_img,
-               m.message, m.created_at
+               m.message, m.attachment_url, m.attachment_name, m.attachment_type, m.attachment_size, m.created_at
         FROM messages m
         JOIN users u ON u.id = m.user_id
         WHERE m.message_id = #{id} AND m.chat_room_id = #{chatRoomId} AND m.deleted_at IS NULL
@@ -36,7 +41,7 @@ interface MessageMapper {
     @Select(
         """
         SELECT m.message_id AS id, m.chat_room_id, m.user_id, u.name AS author_name, u.profile_img AS author_profile_img,
-               m.message, m.created_at
+               m.message, m.attachment_url, m.attachment_name, m.attachment_type, m.attachment_size, m.created_at
         FROM messages m
         JOIN users u ON u.id = m.user_id
         WHERE m.chat_room_id = #{chatRoomId} AND m.deleted_at IS NULL
