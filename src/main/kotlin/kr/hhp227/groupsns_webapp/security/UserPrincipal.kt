@@ -7,10 +7,12 @@ import org.springframework.security.core.userdetails.UserDetails
 
 class UserPrincipal(
     val id: Long,
+    // Typing 같은 실시간 이벤트에 표시 이름을 실어 보내기 위해 보관 — 매 신호마다 DB 조회를 피한다.
+    val name: String,
     private val email: String
 ) : UserDetails {
     companion object {
-        fun from(user: User): UserPrincipal = UserPrincipal(user.id, user.email)
+        fun from(user: User): UserPrincipal = UserPrincipal(user.id, user.name, user.email)
     }
 
     override fun getAuthorities(): Collection<GrantedAuthority> = listOf(SimpleGrantedAuthority("ROLE_USER"))
