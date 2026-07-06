@@ -25,4 +25,6 @@ class NewNotificationRecord(
     val type: NotificationType,
     val targetType: NotificationTargetType?,
     val targetId: Long?
-)
+) {
+    var id: Long = 0 // useGeneratedKeys로 채워짐 — 생성 직후 WS 페이로드 조회에 필요
+}

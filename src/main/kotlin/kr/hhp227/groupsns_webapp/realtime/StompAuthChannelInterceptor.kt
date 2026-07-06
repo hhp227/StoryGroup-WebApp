@@ -52,12 +52,14 @@ class StompAuthChannelInterceptor(
         val user = userMapper.findById(userId) ?: throw AccessDeniedException("유효하지 않은 토큰입니다")
         val principal = UserPrincipal.from(user)
         // accessor.user에 넣어두면 이후 같은 세션의 모든 프레임(SUBSCRIBE 등)에서 꺼내 쓸 수 있다.
-        accessor.user = UsernamePasswordAuthenticationToken(principal, null, principal.authorities)
+        accessor.user = StompUserToken(principal)
     }
 
     private fun authorizeSubscription(accessor: StompHeaderAccessor) {
         val principal = requirePrincipal(accessor)
         val destination = accessor.destination ?: throw AccessDeniedException("destination이 없습니다")
+        // 개인 알림 큐는 Spring이 세션별로 해석해 본인에게만 전달하므로 인증만으로 충분하다.
+        if (destination == USER_NOTIFICATIONS_DESTINATION) return
         val roomId = TOPIC_PATTERN.matchEntire(destination)?.groupValues?.get(1)?.toLongOrNull()
             ?: throw AccessDeniedException("허용되지 않은 destination입니다")
         requireRoomAccess(principal, roomId)
@@ -91,5 +93,14 @@ class StompAuthChannelInterceptor(
     companion object {
         private val TOPIC_PATTERN = Regex("""/topic/chat-rooms/(\d+)""")
         private val TYPING_PATTERN = Regex("""/app/chat-rooms/(\d+)/typing""")
+        private const val USER_NOTIFICATIONS_DESTINATION = "/user/queue/notifications"
     }
+}
+
+// convertAndSendToUser의 사용자 라우팅 키는 세션 Principal.name인데, 기본
+// UsernamePasswordAuthenticationToken의 name은 UserDetails.username(이메일)이다.
+// 알림 발송부(NotificationBroadcaster)가 수신자 userId만 알고 있으므로 name을 userId 문자열로 맞춘다.
+private class StompUserToken(private val user: UserPrincipal) :
+    UsernamePasswordAuthenticationToken(user, null, user.authorities) {
+    override fun getName(): String = user.id.toString()
 }
