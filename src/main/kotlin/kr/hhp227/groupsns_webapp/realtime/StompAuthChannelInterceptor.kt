@@ -33,6 +33,7 @@ class StompAuthChannelInterceptor(
         when (accessor.command) {
             StompCommand.CONNECT -> authenticate(accessor)
             StompCommand.SUBSCRIBE -> authorizeSubscription(accessor)
+            StompCommand.SEND -> authorizeSend(accessor)
             else -> {}
         }
         return message
@@ -55,22 +56,40 @@ class StompAuthChannelInterceptor(
     }
 
     private fun authorizeSubscription(accessor: StompHeaderAccessor) {
-        val principal = (accessor.user as? UsernamePasswordAuthenticationToken)?.principal as? UserPrincipal
-            ?: throw AccessDeniedException("인증되지 않은 연결입니다")
+        val principal = requirePrincipal(accessor)
         val destination = accessor.destination ?: throw AccessDeniedException("destination이 없습니다")
         val roomId = TOPIC_PATTERN.matchEntire(destination)?.groupValues?.get(1)?.toLongOrNull()
             ?: throw AccessDeniedException("허용되지 않은 destination입니다")
+        requireRoomAccess(principal, roomId)
+    }
+
+    // SimpleBroker는 클라이언트가 /topic/**으로 직접 SEND한 프레임도 구독자에게 그대로 중계하므로,
+    // 화이트리스트(typing destination)에 없는 SEND는 전부 거부해 이벤트 위조를 막는다.
+    private fun authorizeSend(accessor: StompHeaderAccessor) {
+        val principal = requirePrincipal(accessor)
+        val destination = accessor.destination ?: throw AccessDeniedException("destination이 없습니다")
+        val roomId = TYPING_PATTERN.matchEntire(destination)?.groupValues?.get(1)?.toLongOrNull()
+            ?: throw AccessDeniedException("허용되지 않은 destination입니다")
+        requireRoomAccess(principal, roomId)
+    }
+
+    private fun requirePrincipal(accessor: StompHeaderAccessor): UserPrincipal =
+        (accessor.user as? UsernamePasswordAuthenticationToken)?.principal as? UserPrincipal
+            ?: throw AccessDeniedException("인증되지 않은 연결입니다")
+
+    private fun requireRoomAccess(principal: UserPrincipal, roomId: Long) {
         // 그룹 리소스의 404 은닉 원칙과 결을 맞춰, 없는 방과 권한 없는 방을 같은 메시지로 거부한다.
-        val room = chatRoomMapper.findById(roomId) ?: throw AccessDeniedException("구독할 수 없는 채팅방입니다")
+        val room = chatRoomMapper.findById(roomId) ?: throw AccessDeniedException("접근할 수 없는 채팅방입니다")
         val allowed = if (room.groupId != null) {
             userGroupMapper.findRole(principal.id, room.groupId) != null
         } else {
             room.userAId == principal.id || room.userBId == principal.id
         }
-        if (!allowed) throw AccessDeniedException("구독할 수 없는 채팅방입니다")
+        if (!allowed) throw AccessDeniedException("접근할 수 없는 채팅방입니다")
     }
 
     companion object {
         private val TOPIC_PATTERN = Regex("""/topic/chat-rooms/(\d+)""")
+        private val TYPING_PATTERN = Regex("""/app/chat-rooms/(\d+)/typing""")
     }
 }

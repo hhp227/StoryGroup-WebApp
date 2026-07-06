@@ -11,7 +11,11 @@ class ChatEventBroadcaster(private val messagingTemplate: SimpMessagingTemplate)
 
     // 기본 phase가 AFTER_COMMIT — 롤백된 메시지가 방송되는 일이 없다.
     @TransactionalEventListener
-    fun on(event: ChatSocketEvent) {
+    fun on(event: ChatSocketEvent) = relay(event)
+
+    // Typing처럼 DB를 안 거치는 휘발성 이벤트는 트랜잭션이 없어 @TransactionalEventListener가
+    // 이벤트를 버리므로, 발행처가 이 메서드를 직접 호출한다.
+    fun relay(event: ChatSocketEvent) {
         messagingTemplate.convertAndSend("/topic/chat-rooms/${event.chatRoomId}", event)
     }
 }
