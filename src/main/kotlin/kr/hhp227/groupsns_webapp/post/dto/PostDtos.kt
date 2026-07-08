@@ -54,6 +54,23 @@ data class GroupPhotosResponse(
     val photos: List<GroupPhotoResponse>
 )
 
+// 사이드바 공지 패널 한 줄 — 본문 요약만 필요해서 PostResponse보다 얇다(이미지 조인 없음).
+data class NoticeSummaryResponse(
+    val id: Long,
+    val text: String,
+    val authorName: String,
+    val createdAt: OffsetDateTime
+) {
+    companion object {
+        fun from(row: PostFeedRow) = NoticeSummaryResponse(row.id, row.text, row.authorName, row.createdAt)
+    }
+}
+
+data class GroupNoticesResponse(
+    val totalCount: Long,
+    val notices: List<NoticeSummaryResponse>
+)
+
 data class PostResponse(
     val id: Long,
     val groupId: Long,
