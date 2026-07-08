@@ -60,4 +60,21 @@ interface PostMapper {
         """
     )
     fun findFeedByGroup(@Param("groupId") groupId: Long, @Param("limit") limit: Int, @Param("offset") offset: Int): List<PostFeedRow>
+
+    // 사이드바 공지 패널: 최근 공지 몇 건만 잘라서 본다.
+    @Select(
+        """
+        SELECT p.id, p.group_id, p.user_id, u.name AS author_name, u.profile_img AS author_profile_img,
+               p.text, p.is_notice, p.created_at
+        FROM posts p
+        JOIN users u ON u.id = p.user_id
+        WHERE p.group_id = #{groupId} AND p.is_notice = true AND p.deleted_at IS NULL
+        ORDER BY p.created_at DESC
+        LIMIT #{limit}
+        """
+    )
+    fun findNotices(@Param("groupId") groupId: Long, @Param("limit") limit: Int): List<PostFeedRow>
+
+    @Select("SELECT COUNT(*) FROM posts WHERE group_id = #{groupId} AND is_notice = true AND deleted_at IS NULL")
+    fun countNotices(groupId: Long): Long
 }

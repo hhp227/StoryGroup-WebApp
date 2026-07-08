@@ -11,8 +11,10 @@ import kr.hhp227.groupsns_webapp.notification.NotificationService
 import kr.hhp227.groupsns_webapp.notification.NotificationTargetType
 import kr.hhp227.groupsns_webapp.notification.NotificationType
 import kr.hhp227.groupsns_webapp.post.dto.CreatePostRequest
+import kr.hhp227.groupsns_webapp.post.dto.GroupNoticesResponse
 import kr.hhp227.groupsns_webapp.post.dto.GroupPhotoResponse
 import kr.hhp227.groupsns_webapp.post.dto.GroupPhotosResponse
+import kr.hhp227.groupsns_webapp.post.dto.NoticeSummaryResponse
 import kr.hhp227.groupsns_webapp.post.dto.PostResponse
 import kr.hhp227.groupsns_webapp.post.dto.UpdatePostRequest
 import org.springframework.stereotype.Service
@@ -72,6 +74,18 @@ class PostService(
         if (rows.isEmpty()) return emptyList()
         val imagesByPost = imageMapper.findByPostIds(rows.map { it.id }).groupBy { it.postId }
         return rows.map { PostResponse.from(it, imagesByPost[it.id].orEmpty()) }
+    }
+
+    // 사이드바 공지 패널: 최근 공지 몇 건 + 총 개수. 공지 전체는 피드 상단 고정으로 이미 노출된다.
+    @Transactional
+    fun listNotices(userId: Long, groupId: Long, size: Int): GroupNoticesResponse {
+        dbSessionMapper.setCurrentUserId(userId)
+        requireMembership(userId, groupId)
+
+        val totalCount = postMapper.countNotices(groupId)
+        if (totalCount == 0L) return GroupNoticesResponse(0, emptyList())
+        val rows = postMapper.findNotices(groupId, size)
+        return GroupNoticesResponse(totalCount, rows.map { NoticeSummaryResponse.from(it) })
     }
 
     // 그룹 앨범(파생 뷰): 별도 앨범 엔티티 없이 게시글 첨부 이미지를 모아서 보여준다.
