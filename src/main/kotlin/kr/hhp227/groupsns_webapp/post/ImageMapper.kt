@@ -33,4 +33,29 @@ interface ImageMapper {
 
     @Delete("DELETE FROM images WHERE post_id = #{postId}")
     fun deleteByPostId(postId: Long): Int
+
+    // 그룹 앨범(파생 뷰): 그룹 게시글에 첨부된 이미지를 최신 게시글 순으로 모아 본다.
+    // 정렬을 게시글 기준으로 잡아 같은 게시글의 사진들이 갤러리에서 흩어지지 않게 한다.
+    @Select(
+        """
+        SELECT i.id, i.post_id, i.image, p.user_id, u.name AS author_name, p.created_at
+        FROM images i
+        JOIN posts p ON p.id = i.post_id
+        JOIN users u ON u.id = p.user_id
+        WHERE p.group_id = #{groupId} AND p.deleted_at IS NULL
+        ORDER BY p.created_at DESC, i.post_id DESC, i.id ASC
+        LIMIT #{limit} OFFSET #{offset}
+        """
+    )
+    fun findGroupPhotos(@Param("groupId") groupId: Long, @Param("limit") limit: Int, @Param("offset") offset: Int): List<GroupPhotoRow>
+
+    @Select(
+        """
+        SELECT COUNT(*)
+        FROM images i
+        JOIN posts p ON p.id = i.post_id
+        WHERE p.group_id = #{groupId} AND p.deleted_at IS NULL
+        """
+    )
+    fun countGroupPhotos(groupId: Long): Long
 }

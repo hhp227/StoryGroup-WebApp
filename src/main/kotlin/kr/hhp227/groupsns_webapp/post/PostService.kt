@@ -11,6 +11,8 @@ import kr.hhp227.groupsns_webapp.notification.NotificationService
 import kr.hhp227.groupsns_webapp.notification.NotificationTargetType
 import kr.hhp227.groupsns_webapp.notification.NotificationType
 import kr.hhp227.groupsns_webapp.post.dto.CreatePostRequest
+import kr.hhp227.groupsns_webapp.post.dto.GroupPhotoResponse
+import kr.hhp227.groupsns_webapp.post.dto.GroupPhotosResponse
 import kr.hhp227.groupsns_webapp.post.dto.PostResponse
 import kr.hhp227.groupsns_webapp.post.dto.UpdatePostRequest
 import org.springframework.stereotype.Service
@@ -70,6 +72,18 @@ class PostService(
         if (rows.isEmpty()) return emptyList()
         val imagesByPost = imageMapper.findByPostIds(rows.map { it.id }).groupBy { it.postId }
         return rows.map { PostResponse.from(it, imagesByPost[it.id].orEmpty()) }
+    }
+
+    // 그룹 앨범(파생 뷰): 별도 앨범 엔티티 없이 게시글 첨부 이미지를 모아서 보여준다.
+    @Transactional
+    fun listPhotos(userId: Long, groupId: Long, page: Int, size: Int): GroupPhotosResponse {
+        dbSessionMapper.setCurrentUserId(userId)
+        requireMembership(userId, groupId)
+
+        val totalCount = imageMapper.countGroupPhotos(groupId)
+        if (totalCount == 0L) return GroupPhotosResponse(0, emptyList())
+        val rows = imageMapper.findGroupPhotos(groupId, size, page * size)
+        return GroupPhotosResponse(totalCount, rows.map { GroupPhotoResponse.from(it) })
     }
 
     @Transactional

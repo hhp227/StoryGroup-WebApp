@@ -1,5 +1,6 @@
 package kr.hhp227.groupsns_webapp.post.dto
 
+import kr.hhp227.groupsns_webapp.post.GroupPhotoRow
 import kr.hhp227.groupsns_webapp.post.Image
 import kr.hhp227.groupsns_webapp.post.PostFeedRow
 import java.time.OffsetDateTime
@@ -25,6 +26,33 @@ data class ImageResponse(
         fun from(image: Image) = ImageResponse(image.id, image.image)
     }
 }
+
+// 그룹 앨범(파생 뷰) 한 장 — 클릭 시 원본 게시글로 이동할 수 있게 postId를 함께 준다.
+data class GroupPhotoResponse(
+    val id: Long,
+    val postId: Long,
+    val image: String,
+    val userId: Long,
+    val authorName: String,
+    val createdAt: OffsetDateTime
+) {
+    companion object {
+        fun from(row: GroupPhotoRow) = GroupPhotoResponse(
+            id = row.id,
+            postId = row.postId,
+            image = row.image,
+            userId = row.userId,
+            authorName = row.authorName,
+            createdAt = row.createdAt
+        )
+    }
+}
+
+// 목록형 응답들과 달리 총 개수를 함께 준다 — 사이드바 앨범 패널의 "+N"/"N장" 표기에 필요.
+data class GroupPhotosResponse(
+    val totalCount: Long,
+    val photos: List<GroupPhotoResponse>
+)
 
 data class PostResponse(
     val id: Long,
