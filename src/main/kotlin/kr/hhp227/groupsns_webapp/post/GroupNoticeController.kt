@@ -19,6 +19,7 @@ class GroupNoticeController(private val postService: PostService) {
     fun listNotices(
         @AuthenticationPrincipal principal: UserPrincipal,
         @PathVariable groupId: Long,
+        @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "3") size: Int
-    ): GroupNoticesResponse = postService.listNotices(principal.id, groupId, size.coerceIn(1, 20))
+    ): GroupNoticesResponse = postService.listNotices(principal.id, groupId, page, size.coerceIn(1, 20))
 }

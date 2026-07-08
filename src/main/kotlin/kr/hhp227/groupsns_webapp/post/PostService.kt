@@ -76,15 +76,16 @@ class PostService(
         return rows.map { PostResponse.from(it, imagesByPost[it.id].orEmpty()) }
     }
 
-    // 사이드바 공지 패널: 최근 공지 몇 건 + 총 개수. 공지 전체는 피드 상단 고정으로 이미 노출된다.
+    // 공지 목록: 사이드바 패널(최근 N건)과 공지 전체 페이지가 공용으로 쓴다.
+    // 공지는 피드에서 제외되므로(findFeedByGroup) 여기가 공지의 유일한 목록 창구.
     @Transactional
-    fun listNotices(userId: Long, groupId: Long, size: Int): GroupNoticesResponse {
+    fun listNotices(userId: Long, groupId: Long, page: Int, size: Int): GroupNoticesResponse {
         dbSessionMapper.setCurrentUserId(userId)
         requireMembership(userId, groupId)
 
         val totalCount = postMapper.countNotices(groupId)
         if (totalCount == 0L) return GroupNoticesResponse(0, emptyList())
-        val rows = postMapper.findNotices(groupId, size)
+        val rows = postMapper.findNotices(groupId, size, page * size)
         return GroupNoticesResponse(totalCount, rows.map { NoticeSummaryResponse.from(it) })
     }
 

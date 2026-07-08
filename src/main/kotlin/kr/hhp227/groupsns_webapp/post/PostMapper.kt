@@ -48,20 +48,21 @@ interface PostMapper {
     )
     fun findFeedRowById(@Param("id") id: Long, @Param("groupId") groupId: Long): PostFeedRow?
 
+    // 공지는 피드에서 제외한다 — 사이드바 공지 패널(/notices)이 공지의 노출 창구(상단 고정 방식 폐기).
     @Select(
         """
         SELECT p.id, p.group_id, p.user_id, u.name AS author_name, u.profile_img AS author_profile_img,
                p.text, p.is_notice, p.created_at
         FROM posts p
         JOIN users u ON u.id = p.user_id
-        WHERE p.group_id = #{groupId} AND p.deleted_at IS NULL
-        ORDER BY p.is_pinned DESC, p.created_at DESC
+        WHERE p.group_id = #{groupId} AND p.is_notice = false AND p.deleted_at IS NULL
+        ORDER BY p.created_at DESC
         LIMIT #{limit} OFFSET #{offset}
         """
     )
     fun findFeedByGroup(@Param("groupId") groupId: Long, @Param("limit") limit: Int, @Param("offset") offset: Int): List<PostFeedRow>
 
-    // 사이드바 공지 패널: 최근 공지 몇 건만 잘라서 본다.
+    // 사이드바 공지 패널(최근 N건) + 공지 전체 페이지(페이지네이션) 공용.
     @Select(
         """
         SELECT p.id, p.group_id, p.user_id, u.name AS author_name, u.profile_img AS author_profile_img,
@@ -70,10 +71,10 @@ interface PostMapper {
         JOIN users u ON u.id = p.user_id
         WHERE p.group_id = #{groupId} AND p.is_notice = true AND p.deleted_at IS NULL
         ORDER BY p.created_at DESC
-        LIMIT #{limit}
+        LIMIT #{limit} OFFSET #{offset}
         """
     )
-    fun findNotices(@Param("groupId") groupId: Long, @Param("limit") limit: Int): List<PostFeedRow>
+    fun findNotices(@Param("groupId") groupId: Long, @Param("limit") limit: Int, @Param("offset") offset: Int): List<PostFeedRow>
 
     @Select("SELECT COUNT(*) FROM posts WHERE group_id = #{groupId} AND is_notice = true AND deleted_at IS NULL")
     fun countNotices(groupId: Long): Long
