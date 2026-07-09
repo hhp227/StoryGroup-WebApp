@@ -37,6 +37,7 @@ class PostService(
         val record = NewPostRecord(groupId, userId, request.text)
         postMapper.insert(record)
         request.images?.forEach { imageMapper.insert(NewImageRecord(record.id, userId, it)) }
+        request.videos?.forEach { imageMapper.insert(NewImageRecord(record.id, userId, it, MEDIA_TYPE_VIDEO)) }
 
         notifyGroupMembersExcept(userId, groupId, NotificationType.NEW_POST, record.id)
 
@@ -118,8 +119,12 @@ class PostService(
         if (updated == 0) throw PostNotFoundException()
 
         request.images?.let { urls ->
-            imageMapper.deleteByPostId(postId)
+            imageMapper.deleteByPostIdAndType(postId, MEDIA_TYPE_IMAGE)
             urls.forEach { imageMapper.insert(NewImageRecord(postId, userId, it)) }
+        }
+        request.videos?.let { urls ->
+            imageMapper.deleteByPostIdAndType(postId, MEDIA_TYPE_VIDEO)
+            urls.forEach { imageMapper.insert(NewImageRecord(postId, userId, it, MEDIA_TYPE_VIDEO)) }
         }
         return loadPost(postId, groupId)
     }
@@ -134,8 +139,8 @@ class PostService(
 
     private fun loadPost(postId: Long, groupId: Long): PostResponse {
         val row = postMapper.findFeedRowById(postId, groupId) ?: throw PostNotFoundException()
-        val images = imageMapper.findByPostId(postId)
-        return PostResponse.from(row, images)
+        val attachments = imageMapper.findByPostId(postId)
+        return PostResponse.from(row, attachments)
     }
 
     private fun requireMembership(userId: Long, groupId: Long): GroupRole =
