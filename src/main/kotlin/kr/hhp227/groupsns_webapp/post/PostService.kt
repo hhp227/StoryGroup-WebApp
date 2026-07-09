@@ -31,6 +31,10 @@ class PostService(
 ) {
     @Transactional
     fun createPost(userId: Long, groupId: Long, request: CreatePostRequest): PostResponse {
+        // 첨부만 있는 게시글 허용 — 본문/첨부가 둘 다 비어 있을 때만 거부(채팅 메시지와 같은 규칙)
+        if (request.text.isBlank() && request.images.isNullOrEmpty() && request.videos.isNullOrEmpty()) {
+            throw IllegalArgumentException("게시글 내용이나 첨부 파일이 필요합니다")
+        }
         dbSessionMapper.setCurrentUserId(userId)
         requireMembership(userId, groupId)
 
@@ -114,6 +118,14 @@ class PostService(
         dbSessionMapper.setCurrentUserId(userId)
         requireMembership(userId, groupId)
         requirePostOwner(userId, groupId, postId)
+
+        // 수정 결과 기준으로 "본문/첨부 중 하나는 필수"를 검증 — images/videos가 null이면 기존 첨부가 유지되므로 그걸 센다.
+        if (request.text.isBlank()) {
+            val existing = imageMapper.findByPostId(postId)
+            val imageCount = request.images?.size ?: existing.count { it.mediaType != MEDIA_TYPE_VIDEO }
+            val videoCount = request.videos?.size ?: existing.count { it.mediaType == MEDIA_TYPE_VIDEO }
+            if (imageCount == 0 && videoCount == 0) throw IllegalArgumentException("게시글 내용이나 첨부 파일이 필요합니다")
+        }
 
         val updated = postMapper.update(PostUpdate(postId, request.text))
         if (updated == 0) throw PostNotFoundException()

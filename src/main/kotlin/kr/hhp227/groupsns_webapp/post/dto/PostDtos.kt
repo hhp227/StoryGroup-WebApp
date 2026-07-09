@@ -5,17 +5,18 @@ import kr.hhp227.groupsns_webapp.post.Image
 import kr.hhp227.groupsns_webapp.post.MEDIA_TYPE_VIDEO
 import kr.hhp227.groupsns_webapp.post.PostFeedRow
 import java.time.OffsetDateTime
-import javax.validation.constraints.NotBlank
 import javax.validation.constraints.Size
 
+// text에 @NotBlank가 없는 것은 첨부만 있는 게시글을 허용하기 위함 —
+// "본문/첨부 중 하나는 필수" 검증은 첨부 상태를 알아야 해서 PostService에서 한다.
 data class CreatePostRequest(
-    @field:NotBlank val text: String,
+    val text: String,
     val images: List<@Size(max = 255) String>? = null,
     val videos: List<@Size(max = 255) String>? = null
 )
 
 data class UpdatePostRequest(
-    @field:NotBlank val text: String,
+    val text: String,
     // null: 목록 변경 없음, 빈 리스트: 전체 삭제, 값 있음: 전체 교체 — images/videos 각각 독립 적용
     val images: List<@Size(max = 255) String>? = null,
     val videos: List<@Size(max = 255) String>? = null
