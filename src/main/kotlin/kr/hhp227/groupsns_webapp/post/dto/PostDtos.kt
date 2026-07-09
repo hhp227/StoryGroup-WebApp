@@ -40,10 +40,12 @@ data class VideoResponse(
 }
 
 // 그룹 앨범(파생 뷰) 한 장 — 클릭 시 원본 게시글로 이동할 수 있게 postId를 함께 준다.
+// mediaType('image'|'video')으로 클라이언트가 <img>/<video> 썸네일 렌더링을 가른다.
 data class GroupPhotoResponse(
     val id: Long,
     val postId: Long,
     val image: String,
+    val mediaType: String,
     val userId: Long,
     val authorName: String,
     val createdAt: OffsetDateTime
@@ -53,6 +55,7 @@ data class GroupPhotoResponse(
             id = row.id,
             postId = row.postId,
             image = row.image,
+            mediaType = row.mediaType,
             userId = row.userId,
             authorName = row.authorName,
             createdAt = row.createdAt
