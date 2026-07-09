@@ -35,16 +35,16 @@ interface ImageMapper {
     @Delete("DELETE FROM images WHERE post_id = #{postId} AND media_type = #{mediaType}")
     fun deleteByPostIdAndType(@Param("postId") postId: Long, @Param("mediaType") mediaType: String): Int
 
-    // 그룹 앨범(파생 뷰): 그룹 게시글에 첨부된 이미지를 최신 게시글 순으로 모아 본다.
+    // 그룹 앨범(파생 뷰): 그룹 게시글에 첨부된 이미지/동영상을 최신 게시글 순으로 모아 본다.
     // 정렬을 게시글 기준으로 잡아 같은 게시글의 사진들이 갤러리에서 흩어지지 않게 한다.
-    // 동영상 첨부는 앨범(사진 갤러리)에서 제외한다.
+    // 동영상도 추억 모아보기에 포함한다 — 클라이언트가 media_type으로 썸네일 렌더링을 가른다.
     @Select(
         """
-        SELECT i.id, i.post_id, i.image, p.user_id, u.name AS author_name, p.created_at
+        SELECT i.id, i.post_id, i.image, i.media_type, p.user_id, u.name AS author_name, p.created_at
         FROM images i
         JOIN posts p ON p.id = i.post_id
         JOIN users u ON u.id = p.user_id
-        WHERE p.group_id = #{groupId} AND p.deleted_at IS NULL AND i.media_type = 'image'
+        WHERE p.group_id = #{groupId} AND p.deleted_at IS NULL
         ORDER BY p.created_at DESC, i.post_id DESC, i.id ASC
         LIMIT #{limit} OFFSET #{offset}
         """
@@ -56,7 +56,7 @@ interface ImageMapper {
         SELECT COUNT(*)
         FROM images i
         JOIN posts p ON p.id = i.post_id
-        WHERE p.group_id = #{groupId} AND p.deleted_at IS NULL AND i.media_type = 'image'
+        WHERE p.group_id = #{groupId} AND p.deleted_at IS NULL
         """
     )
     fun countGroupPhotos(groupId: Long): Long

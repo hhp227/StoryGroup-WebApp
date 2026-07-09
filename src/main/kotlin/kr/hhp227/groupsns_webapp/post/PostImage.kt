@@ -28,6 +28,7 @@ data class GroupPhotoRow(
     val id: Long,
     val postId: Long,
     val image: String,
+    val mediaType: String,
     val userId: Long,
     val authorName: String,
     val createdAt: OffsetDateTime
