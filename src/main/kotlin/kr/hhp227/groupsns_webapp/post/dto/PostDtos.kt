@@ -2,6 +2,7 @@ package kr.hhp227.groupsns_webapp.post.dto
 
 import kr.hhp227.groupsns_webapp.post.GroupPhotoRow
 import kr.hhp227.groupsns_webapp.post.Image
+import kr.hhp227.groupsns_webapp.post.MEDIA_TYPE_VIDEO
 import kr.hhp227.groupsns_webapp.post.PostFeedRow
 import java.time.OffsetDateTime
 import javax.validation.constraints.NotBlank
@@ -9,13 +10,15 @@ import javax.validation.constraints.Size
 
 data class CreatePostRequest(
     @field:NotBlank val text: String,
-    val images: List<@Size(max = 255) String>? = null
+    val images: List<@Size(max = 255) String>? = null,
+    val videos: List<@Size(max = 255) String>? = null
 )
 
 data class UpdatePostRequest(
     @field:NotBlank val text: String,
-    // null: 이미지 목록 변경 없음, 빈 리스트: 전체 삭제, 값 있음: 전체 교체
-    val images: List<@Size(max = 255) String>? = null
+    // null: 목록 변경 없음, 빈 리스트: 전체 삭제, 값 있음: 전체 교체 — images/videos 각각 독립 적용
+    val images: List<@Size(max = 255) String>? = null,
+    val videos: List<@Size(max = 255) String>? = null
 )
 
 data class ImageResponse(
@@ -24,6 +27,15 @@ data class ImageResponse(
 ) {
     companion object {
         fun from(image: Image) = ImageResponse(image.id, image.image)
+    }
+}
+
+data class VideoResponse(
+    val id: Long,
+    val video: String
+) {
+    companion object {
+        fun from(image: Image) = VideoResponse(image.id, image.image)
     }
 }
 
@@ -79,18 +91,22 @@ data class PostResponse(
     val authorProfileImg: String?,
     val text: String,
     val images: List<ImageResponse>,
+    val videos: List<VideoResponse>,
     val isNotice: Boolean,
     val createdAt: OffsetDateTime
 ) {
     companion object {
-        fun from(row: PostFeedRow, images: List<Image>) = PostResponse(
+        // attachments는 images 테이블의 이미지+동영상 혼합 목록 — media_type으로 갈라서 내려준다.
+        // images를 그대로 두고 videos를 추가한 것은 기존 클라이언트(images만 아는)와의 하위호환 때문.
+        fun from(row: PostFeedRow, attachments: List<Image>) = PostResponse(
             id = row.id,
             groupId = row.groupId,
             userId = row.userId,
             authorName = row.authorName,
             authorProfileImg = row.authorProfileImg,
             text = row.text,
-            images = images.map { ImageResponse.from(it) },
+            images = attachments.filter { it.mediaType != MEDIA_TYPE_VIDEO }.map { ImageResponse.from(it) },
+            videos = attachments.filter { it.mediaType == MEDIA_TYPE_VIDEO }.map { VideoResponse.from(it) },
             isNotice = row.isNotice,
             createdAt = row.createdAt
         )
