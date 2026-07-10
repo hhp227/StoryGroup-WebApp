@@ -42,7 +42,7 @@ class CommentService(
         // 원글 작성자 + (대댓글이면) 부모 댓글 작성자에게 알림. 본인 글/댓글에는 알리지 않고, 중복 수신도 막는다.
         setOfNotNull(post.userId, parent?.userId)
             .filter { it != userId }
-            .forEach { notificationService.notify(it, NotificationType.COMMENT, NotificationTargetType.REPLY, record.id) }
+            .forEach { notificationService.notify(it, NotificationType.COMMENT, NotificationTargetType.REPLY, record.id, actorId = userId) }
 
         return loadComment(record.id, postId)
     }
@@ -52,7 +52,7 @@ class CommentService(
         dbSessionMapper.setCurrentUserId(userId)
         requireMembership(userId, groupId)
         requirePostExists(groupId, postId)
-        return commentMapper.findFeedByPost(postId, size, page * size).map { CommentResponse.from(it) }
+        return commentMapper.findFeedByPost(postId, userId, size, page * size).map { CommentResponse.from(it) }
     }
 
     @Transactional

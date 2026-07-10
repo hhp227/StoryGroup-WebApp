@@ -45,11 +45,17 @@ interface ImageMapper {
         JOIN posts p ON p.id = i.post_id
         JOIN users u ON u.id = p.user_id
         WHERE p.group_id = #{groupId} AND p.deleted_at IS NULL
+          AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = #{viewerId} AND ub.blocked_id = p.user_id)
         ORDER BY p.created_at DESC, i.post_id DESC, i.id ASC
         LIMIT #{limit} OFFSET #{offset}
         """
     )
-    fun findGroupPhotos(@Param("groupId") groupId: Long, @Param("limit") limit: Int, @Param("offset") offset: Int): List<GroupPhotoRow>
+    fun findGroupPhotos(
+        @Param("groupId") groupId: Long,
+        @Param("viewerId") viewerId: Long,
+        @Param("limit") limit: Int,
+        @Param("offset") offset: Int
+    ): List<GroupPhotoRow>
 
     @Select(
         """
@@ -57,7 +63,8 @@ interface ImageMapper {
         FROM images i
         JOIN posts p ON p.id = i.post_id
         WHERE p.group_id = #{groupId} AND p.deleted_at IS NULL
+          AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = #{viewerId} AND ub.blocked_id = p.user_id)
         """
     )
-    fun countGroupPhotos(groupId: Long): Long
+    fun countGroupPhotos(@Param("groupId") groupId: Long, @Param("viewerId") viewerId: Long): Long
 }

@@ -7,7 +7,9 @@ import kr.hhp227.groupsns_webapp.chat.dto.DirectRoomResponse
 import kr.hhp227.groupsns_webapp.chat.dto.MessageResponse
 import kr.hhp227.groupsns_webapp.chat.dto.ReadPositionResponse
 import kr.hhp227.groupsns_webapp.chat.dto.UpdateMessageRequest
+import kr.hhp227.groupsns_webapp.block.UserBlockMapper
 import kr.hhp227.groupsns_webapp.common.db.DbSessionMapper
+import kr.hhp227.groupsns_webapp.common.exception.BlockedUserException
 import kr.hhp227.groupsns_webapp.common.exception.ChatRoomNotFoundException
 import kr.hhp227.groupsns_webapp.common.exception.ForbiddenException
 import kr.hhp227.groupsns_webapp.common.exception.GroupNotFoundException
@@ -24,6 +26,7 @@ class ChatService(
     private val messageMapper: MessageMapper,
     private val chatRoomReadMapper: ChatRoomReadMapper,
     private val userGroupMapper: UserGroupMapper,
+    private val userBlockMapper: UserBlockMapper,
     private val dbSessionMapper: DbSessionMapper,
     // WebSocket 브로드캐스트는 ChatEventBroadcaster가 커밋 후에 처리 — 여기선 이벤트 발행만.
     private val eventPublisher: ApplicationEventPublisher
@@ -62,7 +65,7 @@ class ChatService(
         dbSessionMapper.setCurrentUserId(userId)
         requireMembership(userId, groupId)
         requireChatRoomExists(groupId, chatRoomId)
-        return messageMapper.findFeedByRoom(chatRoomId, size, page * size).map { MessageResponse.from(it) }
+        return messageMapper.findFeedByRoom(chatRoomId, userId, size, page * size).map { MessageResponse.from(it) }
     }
 
     @Transactional
@@ -91,6 +94,7 @@ class ChatService(
     fun getOrCreateDirectRoom(userId: Long, otherUserId: Long): ChatRoomResponse {
         if (userId == otherUserId) throw IllegalArgumentException("자기 자신과는 DM을 시작할 수 없습니다")
         dbSessionMapper.setCurrentUserId(userId)
+        requireNotBlocked(userId, otherUserId)
 
         val existing = chatRoomMapper.findDirectRoom(userId, otherUserId)
         if (existing != null) return ChatRoomResponse.from(existing)
@@ -110,7 +114,8 @@ class ChatService(
     @Transactional
     fun sendDirectMessage(userId: Long, chatRoomId: Long, request: CreateMessageRequest): MessageResponse {
         dbSessionMapper.setCurrentUserId(userId)
-        requireDirectRoomParticipant(userId, chatRoomId)
+        val room = requireDirectRoomParticipant(userId, chatRoomId)
+        requireNotBlocked(userId, if (room.userAId == userId) room.userBId!! else room.userAId!!)
 
         val record = buildNewMessage(chatRoomId, userId, request)
         messageMapper.insert(record)
@@ -121,7 +126,7 @@ class ChatService(
     fun listDirectMessages(userId: Long, chatRoomId: Long, page: Int, size: Int): List<MessageResponse> {
         dbSessionMapper.setCurrentUserId(userId)
         requireDirectRoomParticipant(userId, chatRoomId)
-        return messageMapper.findFeedByRoom(chatRoomId, size, page * size).map { MessageResponse.from(it) }
+        return messageMapper.findFeedByRoom(chatRoomId, userId, size, page * size).map { MessageResponse.from(it) }
     }
 
     @Transactional
@@ -209,8 +214,14 @@ class ChatService(
         if (message.userId != userId) throw ForbiddenException()
     }
 
-    private fun requireDirectRoomParticipant(userId: Long, chatRoomId: Long) {
+    private fun requireDirectRoomParticipant(userId: Long, chatRoomId: Long): ChatRoom {
         val room = chatRoomMapper.findById(chatRoomId)?.takeIf { it.groupId == null } ?: throw ChatRoomNotFoundException()
         if (room.userAId != userId && room.userBId != userId) throw ChatRoomNotFoundException()
+        return room
+    }
+
+    // DM은 어느 쪽이 차단했든 양방향으로 막는다. 누가 차단했는지는 응답에 노출하지 않는다.
+    private fun requireNotBlocked(userId: Long, otherUserId: Long) {
+        if (userBlockMapper.existsBetween(userId, otherUserId)) throw BlockedUserException()
     }
 }

@@ -52,7 +52,7 @@ class FileService(
     fun listFiles(userId: Long, groupId: Long, page: Int, size: Int): List<FileResponse> {
         dbSessionMapper.setCurrentUserId(userId)
         requireMembership(userId, groupId)
-        return fileMapper.findFeedByGroup(groupId, size, page * size).map { FileResponse.from(it) }
+        return fileMapper.findFeedByGroup(groupId, userId, size, page * size).map { FileResponse.from(it) }
     }
 
     @Transactional

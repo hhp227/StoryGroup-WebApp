@@ -30,6 +30,7 @@ interface SearchMapper {
         JOIN users u ON u.id = p.user_id
         WHERE p.deleted_at IS NULL
           AND p.text ILIKE '%' || #{query} || '%'
+          AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = #{userId} AND ub.blocked_id = p.user_id)
         ORDER BY p.created_at DESC
         LIMIT #{limit}
         """
@@ -44,6 +45,7 @@ interface SearchMapper {
         JOIN user_groups ug ON ug.group_id = f.group_id AND ug.user_id = #{userId}
         WHERE f.deleted_at IS NULL
           AND f.name ILIKE '%' || #{query} || '%'
+          AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = #{userId} AND ub.blocked_id = f.user_id)
         ORDER BY f.created_at DESC
         LIMIT #{limit}
         """
@@ -61,6 +63,7 @@ interface SearchMapper {
         JOIN users u ON u.id = m.user_id
         WHERE m.deleted_at IS NULL
           AND m.message ILIKE '%' || #{query} || '%'
+          AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = #{userId} AND ub.blocked_id = m.user_id)
           AND (
             (r.group_id IS NOT NULL AND g.id IS NOT NULL AND EXISTS (
                 SELECT 1 FROM user_groups ug WHERE ug.group_id = r.group_id AND ug.user_id = #{userId}
@@ -82,6 +85,7 @@ interface SearchMapper {
         JOIN user_groups mine ON mine.group_id = ug.group_id AND mine.user_id = #{userId}
         WHERE u.id != #{userId} AND u.deleted_at IS NULL
           AND u.name ILIKE '%' || #{query} || '%'
+          AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = #{userId} AND ub.blocked_id = u.id)
         ORDER BY u.name ASC
         LIMIT #{limit}
         """

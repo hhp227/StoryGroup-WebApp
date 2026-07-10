@@ -150,7 +150,7 @@ class GroupService(
             val moderatorIds = userGroupMapper.findMembers(groupId)
                 .filter { it.role.isModerator }
                 .map { it.userId }
-            notificationService.notifyAll(moderatorIds, NotificationType.JOIN_REQUEST, NotificationTargetType.GROUP, groupId)
+            notificationService.notifyAll(moderatorIds, NotificationType.JOIN_REQUEST, NotificationTargetType.GROUP, groupId, actorId = userId)
             JoinGroupResponse(JoinResult.REQUESTED, null)
         }
     }

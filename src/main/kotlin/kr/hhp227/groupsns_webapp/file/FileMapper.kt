@@ -35,6 +35,7 @@ interface FileMapper {
     )
     fun findFeedRowById(@Param("id") id: Long, @Param("groupId") groupId: Long): FileFeedRow?
 
+    // viewerId가 차단한 사용자가 올린 파일은 숨긴다(차단 숨김은 쿼리 레벨 - 앱 DB 롤은 RLS 우회).
     @Select(
         """
         SELECT f.id, f.group_id, f.user_id, u.name AS author_name, u.profile_img AS author_profile_img,
@@ -42,9 +43,15 @@ interface FileMapper {
         FROM files f
         JOIN users u ON u.id = f.user_id
         WHERE f.group_id = #{groupId} AND f.deleted_at IS NULL
+          AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = #{viewerId} AND ub.blocked_id = f.user_id)
         ORDER BY f.created_at DESC
         LIMIT #{limit} OFFSET #{offset}
         """
     )
-    fun findFeedByGroup(@Param("groupId") groupId: Long, @Param("limit") limit: Int, @Param("offset") offset: Int): List<FileFeedRow>
+    fun findFeedByGroup(
+        @Param("groupId") groupId: Long,
+        @Param("viewerId") viewerId: Long,
+        @Param("limit") limit: Int,
+        @Param("offset") offset: Int
+    ): List<FileFeedRow>
 }

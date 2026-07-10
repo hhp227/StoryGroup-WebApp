@@ -29,7 +29,7 @@ class LikeService(
         if (likeMapper.exists(userId, postId)) throw AlreadyLikedException()
         likeMapper.insert(NewLikeRecord(userId, postId))
         if (post.userId != userId) {
-            notificationService.notify(post.userId, NotificationType.LIKE, NotificationTargetType.POST, postId)
+            notificationService.notify(post.userId, NotificationType.LIKE, NotificationTargetType.POST, postId, actorId = userId)
         }
     }
 

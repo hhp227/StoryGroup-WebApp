@@ -43,7 +43,7 @@ class MeetingService(
         val group = groupMapper.findById(groupId) ?: return
         if (group.isLounge) return
         val recipientIds = userGroupMapper.findMembers(groupId).map { it.userId }.filter { it != hostId }
-        notificationService.notifyAll(recipientIds, NotificationType.MEETING_STARTED, NotificationTargetType.MEETING, meetingId)
+        notificationService.notifyAll(recipientIds, NotificationType.MEETING_STARTED, NotificationTargetType.MEETING, meetingId, actorId = hostId)
     }
 
     @Transactional

@@ -45,7 +45,7 @@ class PostService(
 
         notifyGroupMembersExcept(userId, groupId, NotificationType.NEW_POST, record.id)
 
-        return loadPost(record.id, groupId)
+        return loadPost(record.id, groupId, userId)
     }
 
     // 라운지는 전 회원이 자동 가입돼 있어 이벤트마다 전체에게 알리면 스팸이 되므로 제외한다.
@@ -53,7 +53,7 @@ class PostService(
         val group = groupMapper.findById(groupId) ?: return
         if (group.isLounge) return
         val recipientIds = userGroupMapper.findMembers(groupId).map { it.userId }.filter { it != actorId }
-        notificationService.notifyAll(recipientIds, type, NotificationTargetType.POST, postId)
+        notificationService.notifyAll(recipientIds, type, NotificationTargetType.POST, postId, actorId = actorId)
     }
 
     // 공지 지정/해제는 방장/부방장 전용(PRD 8번 "공지: 관리자만 작성"). 지정 시에만 NOTICE 알림을 보낸다.
@@ -67,7 +67,7 @@ class PostService(
         val updated = postMapper.setNotice(postId, notice)
         if (updated == 0) throw PostNotFoundException()
         if (notice) notifyGroupMembersExcept(userId, groupId, NotificationType.NOTICE, postId)
-        return loadPost(postId, groupId)
+        return loadPost(postId, groupId, userId)
     }
 
     @Transactional
@@ -75,7 +75,7 @@ class PostService(
         dbSessionMapper.setCurrentUserId(userId)
         requireMembership(userId, groupId)
 
-        val rows = postMapper.findFeedByGroup(groupId, size, page * size)
+        val rows = postMapper.findFeedByGroup(groupId, userId, size, page * size)
         if (rows.isEmpty()) return emptyList()
         val imagesByPost = imageMapper.findByPostIds(rows.map { it.id }).groupBy { it.postId }
         return rows.map { PostResponse.from(it, imagesByPost[it.id].orEmpty()) }
@@ -88,9 +88,9 @@ class PostService(
         dbSessionMapper.setCurrentUserId(userId)
         requireMembership(userId, groupId)
 
-        val totalCount = postMapper.countNotices(groupId)
+        val totalCount = postMapper.countNotices(groupId, userId)
         if (totalCount == 0L) return GroupNoticesResponse(0, emptyList())
-        val rows = postMapper.findNotices(groupId, size, page * size)
+        val rows = postMapper.findNotices(groupId, userId, size, page * size)
         return GroupNoticesResponse(totalCount, rows.map { NoticeSummaryResponse.from(it) })
     }
 
@@ -100,9 +100,9 @@ class PostService(
         dbSessionMapper.setCurrentUserId(userId)
         requireMembership(userId, groupId)
 
-        val totalCount = imageMapper.countGroupPhotos(groupId)
+        val totalCount = imageMapper.countGroupPhotos(groupId, userId)
         if (totalCount == 0L) return GroupPhotosResponse(0, emptyList())
-        val rows = imageMapper.findGroupPhotos(groupId, size, page * size)
+        val rows = imageMapper.findGroupPhotos(groupId, userId, size, page * size)
         return GroupPhotosResponse(totalCount, rows.map { GroupPhotoResponse.from(it) })
     }
 
@@ -110,7 +110,7 @@ class PostService(
     fun getPost(userId: Long, groupId: Long, postId: Long): PostResponse {
         dbSessionMapper.setCurrentUserId(userId)
         requireMembership(userId, groupId)
-        return loadPost(postId, groupId)
+        return loadPost(postId, groupId, userId)
     }
 
     @Transactional
@@ -138,7 +138,7 @@ class PostService(
             imageMapper.deleteByPostIdAndType(postId, MEDIA_TYPE_VIDEO)
             urls.forEach { imageMapper.insert(NewImageRecord(postId, userId, it, MEDIA_TYPE_VIDEO)) }
         }
-        return loadPost(postId, groupId)
+        return loadPost(postId, groupId, userId)
     }
 
     @Transactional
@@ -149,8 +149,8 @@ class PostService(
         postMapper.softDelete(postId)
     }
 
-    private fun loadPost(postId: Long, groupId: Long): PostResponse {
-        val row = postMapper.findFeedRowById(postId, groupId) ?: throw PostNotFoundException()
+    private fun loadPost(postId: Long, groupId: Long, viewerId: Long): PostResponse {
+        val row = postMapper.findFeedRowById(postId, groupId, viewerId) ?: throw PostNotFoundException()
         val attachments = imageMapper.findByPostId(postId)
         return PostResponse.from(row, attachments)
     }

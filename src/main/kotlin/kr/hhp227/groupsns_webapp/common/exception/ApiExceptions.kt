@@ -48,3 +48,11 @@ class NotificationNotFoundException : RuntimeException("알림을 찾을 수 없
 
 // JWT principal은 있는데 그 시점 유저가 탈퇴 등으로 사라진 경우에 대한 방어적 처리(정상 흐름에선 발생 안 함).
 class UserNotFoundException : RuntimeException("사용자를 찾을 수 없습니다")
+
+class AlreadyBlockedException : RuntimeException("이미 차단한 사용자입니다")
+
+// 존재하지 않거나 이미 해제된 차단 내역.
+class BlockNotFoundException : RuntimeException("차단 내역을 찾을 수 없습니다")
+
+// 차단 관계에서 막히는 상호작용(DM 방 생성/메시지 전송). 어느 쪽이 차단했는지는 노출하지 않는다.
+class BlockedUserException : RuntimeException("차단 관계인 사용자에게는 보낼 수 없습니다")

@@ -38,6 +38,7 @@ interface MessageMapper {
     )
     fun findFeedRowById(@Param("id") id: Long, @Param("chatRoomId") chatRoomId: Long): MessageFeedRow?
 
+    // viewerId가 차단한 사용자의 메시지는 숨긴다(그룹 채팅/DM 공용 - 차단 숨김은 쿼리 레벨, 앱 DB 롤은 RLS 우회).
     @Select(
         """
         SELECT m.message_id AS id, m.chat_room_id, m.user_id, u.name AS author_name, u.profile_img AS author_profile_img,
@@ -45,9 +46,15 @@ interface MessageMapper {
         FROM messages m
         JOIN users u ON u.id = m.user_id
         WHERE m.chat_room_id = #{chatRoomId} AND m.deleted_at IS NULL
+          AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = #{viewerId} AND ub.blocked_id = m.user_id)
         ORDER BY m.created_at DESC
         LIMIT #{limit} OFFSET #{offset}
         """
     )
-    fun findFeedByRoom(@Param("chatRoomId") chatRoomId: Long, @Param("limit") limit: Int, @Param("offset") offset: Int): List<MessageFeedRow>
+    fun findFeedByRoom(
+        @Param("chatRoomId") chatRoomId: Long,
+        @Param("viewerId") viewerId: Long,
+        @Param("limit") limit: Int,
+        @Param("offset") offset: Int
+    ): List<MessageFeedRow>
 }
