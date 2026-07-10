@@ -74,9 +74,10 @@ class GroupController(private val groupService: GroupService) {
     fun discoverGroups(
         @AuthenticationPrincipal principal: UserPrincipal,
         @RequestParam(defaultValue = "") query: String,
+        @RequestParam(defaultValue = "recent") sort: String,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int
-    ): List<DiscoverGroupResponse> = groupService.discoverGroups(principal.id, query, page, size)
+    ): List<DiscoverGroupResponse> = groupService.discoverGroups(principal.id, query, sort, page, size)
 
     @PostMapping("/{groupId}/join")
     fun joinGroup(@AuthenticationPrincipal principal: UserPrincipal, @PathVariable groupId: Long): JoinGroupResponse =

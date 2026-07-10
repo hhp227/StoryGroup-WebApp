@@ -126,9 +126,12 @@ class GroupService(
     // 그룹 탐색(레거시 "전체 그룹" 복원): 라운지/삭제 그룹을 뺀 모든 그룹을 노출한다.
     // 가입 여부와 무관하게 보여주고, 카드 버튼 상태를 위해 membership(NONE/PENDING/MEMBER)을 함께 내린다.
     @Transactional
-    fun discoverGroups(userId: Long, query: String, page: Int, size: Int): List<DiscoverGroupResponse> {
+    fun discoverGroups(userId: Long, query: String, sort: String, page: Int, size: Int): List<DiscoverGroupResponse> {
+        if (sort !in setOf("recent", "popular")) {
+            throw IllegalArgumentException("sort는 recent 또는 popular만 가능합니다")
+        }
         dbSessionMapper.setCurrentUserId(userId)
-        return groupMapper.findDiscoverGroups(userId, query.trim(), size, page * size)
+        return groupMapper.findDiscoverGroups(userId, query.trim(), sort, size, page * size)
             .map { DiscoverGroupResponse.from(it) }
     }
 

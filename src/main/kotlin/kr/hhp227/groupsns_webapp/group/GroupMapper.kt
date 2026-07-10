@@ -50,8 +50,10 @@ interface GroupMapper {
     // 그룹 탐색: 라운지/삭제 그룹 제외 전체 노출(레거시 동작). 멤버 수는 user_groups RLS(멤버만
     // SELECT 가능)를 우회하는 SECURITY DEFINER 함수 group_member_count()로 계산하고,
     // "나와의 관계"는 내 행만 LEFT JOIN해 확인한다(내 멤버십/신청 행은 RLS 정책상 항상 보인다).
+    // 정렬: popular=멤버 수 많은 순(홈 "인기 그룹" 패널), 그 외=최신순.
     @Select(
         """
+        <script>
         SELECT g.id, g.name, g.image, g.description, g.join_type, g.created_at,
                group_member_count(g.id) AS member_count,
                (ug.user_id IS NOT NULL) AS is_member,
@@ -61,13 +63,18 @@ interface GroupMapper {
         LEFT JOIN group_join_requests jr ON jr.group_id = g.id AND jr.user_id = #{userId}
         WHERE g.deleted_at IS NULL AND g.is_lounge = false
           AND (#{query} = '' OR g.name ILIKE '%' || #{query} || '%' OR g.description ILIKE '%' || #{query} || '%')
-        ORDER BY g.created_at DESC
+        <choose>
+            <when test="sort == 'popular'">ORDER BY member_count DESC, g.created_at DESC</when>
+            <otherwise>ORDER BY g.created_at DESC</otherwise>
+        </choose>
         LIMIT #{size} OFFSET #{offset}
+        </script>
         """
     )
     fun findDiscoverGroups(
         @Param("userId") userId: Long,
         @Param("query") query: String,
+        @Param("sort") sort: String,
         @Param("size") size: Int,
         @Param("offset") offset: Int
     ): List<DiscoverGroupRow>
