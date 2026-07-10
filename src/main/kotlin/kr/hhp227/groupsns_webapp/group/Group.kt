@@ -29,5 +29,6 @@ class GroupUpdate(
     val id: Long,
     val name: String,
     val image: String?,
-    val description: String?
+    val description: String?,
+    val joinType: Int? // null이면 기존 값 유지(UPDATE에서 COALESCE 처리)
 )

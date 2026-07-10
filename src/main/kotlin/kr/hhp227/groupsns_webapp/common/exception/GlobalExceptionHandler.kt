@@ -25,6 +25,10 @@ class GlobalExceptionHandler {
     fun handleAlreadyLiked(ex: AlreadyLikedException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse("ALREADY_LIKED", ex.message!!))
 
+    @ExceptionHandler(AlreadyRequestedException::class)
+    fun handleAlreadyRequested(ex: AlreadyRequestedException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse("ALREADY_REQUESTED", ex.message!!))
+
     // 각 서비스의 사전 체크(existsByEmail, 멤버십 조회 등)와 실제 INSERT 사이의 동시성 경합(TOCTOU)에 대한
     // 2차 방어선. 어떤 UNIQUE 제약이든 걸릴 수 있어 원본 SQL 메시지는 노출하지 않고 일반화된 메시지로 응답한다.
     @ExceptionHandler(DataIntegrityViolationException::class)
@@ -54,7 +58,8 @@ class GlobalExceptionHandler {
         MeetingNotFoundException::class,
         GroupFileNotFoundException::class,
         NotificationNotFoundException::class,
-        UserNotFoundException::class
+        UserNotFoundException::class,
+        JoinRequestNotFoundException::class
     )
     fun handleNotFound(ex: RuntimeException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("NOT_FOUND", ex.message!!))

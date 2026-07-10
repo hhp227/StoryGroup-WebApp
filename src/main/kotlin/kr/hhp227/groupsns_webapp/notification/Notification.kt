@@ -3,7 +3,9 @@ package kr.hhp227.groupsns_webapp.notification
 import java.time.OffsetDateTime
 
 enum class NotificationType {
-    NEW_POST, COMMENT, LIKE, MENTION, CHAT, MEETING_STARTED, NOTICE, INVITE
+    NEW_POST, COMMENT, LIKE, MENTION, CHAT, MEETING_STARTED, NOTICE, INVITE,
+    // 그룹 가입 신청 흐름: 신청 발생(모더레이터에게) / 승인·거절 결과(신청자에게)
+    JOIN_REQUEST, JOIN_APPROVED, JOIN_REJECTED
 }
 
 enum class NotificationTargetType {

@@ -4,16 +4,26 @@ import kr.hhp227.groupsns_webapp.chat.ChatRoomMapper
 import kr.hhp227.groupsns_webapp.chat.NewChatRoomRecord
 import kr.hhp227.groupsns_webapp.common.db.DbSessionMapper
 import kr.hhp227.groupsns_webapp.common.exception.AlreadyMemberException
+import kr.hhp227.groupsns_webapp.common.exception.AlreadyRequestedException
 import kr.hhp227.groupsns_webapp.common.exception.ForbiddenException
 import kr.hhp227.groupsns_webapp.common.exception.GroupMemberNotFoundException
 import kr.hhp227.groupsns_webapp.common.exception.GroupNotFoundException
 import kr.hhp227.groupsns_webapp.common.exception.InvalidInviteException
+import kr.hhp227.groupsns_webapp.common.exception.JoinRequestNotFoundException
 import kr.hhp227.groupsns_webapp.group.dto.CreateGroupRequest
 import kr.hhp227.groupsns_webapp.group.dto.CreateInviteRequest
+import kr.hhp227.groupsns_webapp.group.dto.DiscoverGroupResponse
+import kr.hhp227.groupsns_webapp.group.dto.GroupJoinType
 import kr.hhp227.groupsns_webapp.group.dto.GroupResponse
 import kr.hhp227.groupsns_webapp.group.dto.InviteResponse
+import kr.hhp227.groupsns_webapp.group.dto.JoinGroupResponse
+import kr.hhp227.groupsns_webapp.group.dto.JoinRequestResponse
+import kr.hhp227.groupsns_webapp.group.dto.JoinResult
 import kr.hhp227.groupsns_webapp.group.dto.MemberResponse
 import kr.hhp227.groupsns_webapp.group.dto.UpdateGroupRequest
+import kr.hhp227.groupsns_webapp.notification.NotificationService
+import kr.hhp227.groupsns_webapp.notification.NotificationTargetType
+import kr.hhp227.groupsns_webapp.notification.NotificationType
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.security.SecureRandom
@@ -24,8 +34,10 @@ class GroupService(
     private val groupMapper: GroupMapper,
     private val userGroupMapper: UserGroupMapper,
     private val groupInviteMapper: GroupInviteMapper,
+    private val groupJoinRequestMapper: GroupJoinRequestMapper,
     private val chatRoomMapper: ChatRoomMapper,
-    private val dbSessionMapper: DbSessionMapper
+    private val dbSessionMapper: DbSessionMapper,
+    private val notificationService: NotificationService
 ) {
     private val secureRandom = SecureRandom()
 
@@ -68,7 +80,9 @@ class GroupService(
     fun updateGroup(userId: Long, groupId: Long, request: UpdateGroupRequest): GroupResponse {
         dbSessionMapper.setCurrentUserId(userId)
         requireOwner(userId, groupId)
-        val updated = groupMapper.update(GroupUpdate(groupId, request.name, request.image, request.description))
+        val updated = groupMapper.update(
+            GroupUpdate(groupId, request.name, request.image, request.description, request.joinType?.code)
+        )
         if (updated == 0) throw GroupNotFoundException()
         val group = groupMapper.findById(groupId) ?: throw GroupNotFoundException()
         return GroupResponse.from(group, GroupRole.OWNER)
@@ -107,6 +121,68 @@ class GroupService(
 
         val group = groupMapper.findById(invite.groupId) ?: throw GroupNotFoundException()
         return GroupResponse.from(group, GroupRole.MEMBER)
+    }
+
+    // 그룹 탐색(레거시 "전체 그룹" 복원): 라운지/삭제 그룹을 뺀 모든 그룹을 노출한다.
+    // 가입 여부와 무관하게 보여주고, 카드 버튼 상태를 위해 membership(NONE/PENDING/MEMBER)을 함께 내린다.
+    @Transactional
+    fun discoverGroups(userId: Long, query: String, page: Int, size: Int): List<DiscoverGroupResponse> {
+        dbSessionMapper.setCurrentUserId(userId)
+        return groupMapper.findDiscoverGroups(userId, query.trim(), size, page * size)
+            .map { DiscoverGroupResponse.from(it) }
+    }
+
+    // 레거시 join_type 의미 복원: 자동 승인(0)이면 즉시 가입, 승인제(1)면 신청을 남기고
+    // 모더레이터에게 알림을 보낸다. 초대 코드 가입(joinByCode)은 이와 별개로 계속 동작한다.
+    @Transactional
+    fun joinGroup(userId: Long, groupId: Long): JoinGroupResponse {
+        dbSessionMapper.setCurrentUserId(userId)
+        val group = groupMapper.findById(groupId) ?: throw GroupNotFoundException()
+        if (group.isLounge) throw IllegalArgumentException("라운지는 모든 회원이 자동 가입되는 공간입니다")
+        if (userGroupMapper.findRole(userId, groupId) != null) throw AlreadyMemberException()
+        if (groupJoinRequestMapper.exists(groupId, userId)) throw AlreadyRequestedException()
+
+        return if (GroupJoinType.fromCode(group.joinType) == GroupJoinType.AUTO_APPROVE) {
+            userGroupMapper.insert(userId, groupId, GroupRole.MEMBER)
+            JoinGroupResponse(JoinResult.JOINED, GroupResponse.from(group, GroupRole.MEMBER))
+        } else {
+            groupJoinRequestMapper.insert(groupId, userId)
+            val moderatorIds = userGroupMapper.findMembers(groupId)
+                .filter { it.role.isModerator }
+                .map { it.userId }
+            notificationService.notifyAll(moderatorIds, NotificationType.JOIN_REQUEST, NotificationTargetType.GROUP, groupId)
+            JoinGroupResponse(JoinResult.REQUESTED, null)
+        }
+    }
+
+    @Transactional
+    fun cancelJoinRequest(userId: Long, groupId: Long) {
+        dbSessionMapper.setCurrentUserId(userId)
+        if (groupJoinRequestMapper.delete(groupId, userId) == 0) throw JoinRequestNotFoundException()
+    }
+
+    @Transactional
+    fun listJoinRequests(userId: Long, groupId: Long): List<JoinRequestResponse> {
+        dbSessionMapper.setCurrentUserId(userId)
+        requireModerator(userId, groupId)
+        return groupJoinRequestMapper.findByGroup(groupId).map { JoinRequestResponse.from(it) }
+    }
+
+    @Transactional
+    fun approveJoinRequest(userId: Long, groupId: Long, targetUserId: Long) {
+        dbSessionMapper.setCurrentUserId(userId)
+        requireModerator(userId, groupId)
+        if (groupJoinRequestMapper.delete(groupId, targetUserId) == 0) throw JoinRequestNotFoundException()
+        userGroupMapper.insert(targetUserId, groupId, GroupRole.MEMBER)
+        notificationService.notify(targetUserId, NotificationType.JOIN_APPROVED, NotificationTargetType.GROUP, groupId)
+    }
+
+    @Transactional
+    fun rejectJoinRequest(userId: Long, groupId: Long, targetUserId: Long) {
+        dbSessionMapper.setCurrentUserId(userId)
+        requireModerator(userId, groupId)
+        if (groupJoinRequestMapper.delete(groupId, targetUserId) == 0) throw JoinRequestNotFoundException()
+        notificationService.notify(targetUserId, NotificationType.JOIN_REJECTED, NotificationTargetType.GROUP, groupId)
     }
 
     @Transactional

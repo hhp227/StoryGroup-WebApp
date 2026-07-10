@@ -30,3 +30,24 @@ data class GroupMemberRow(
     val role: GroupRole,
     val joinedAt: OffsetDateTime
 )
+
+// 그룹 탐색 목록 한 행 - 멤버 수와 "나와의 관계"(가입됨/신청 대기)를 함께 조회한다.
+data class DiscoverGroupRow(
+    val id: Long,
+    val name: String,
+    val image: String?,
+    val description: String?,
+    val joinType: Int,
+    val createdAt: OffsetDateTime,
+    val memberCount: Long,
+    val isMember: Boolean,
+    val isPending: Boolean
+)
+
+// 가입 신청 목록 한 행(모더레이터 승인 화면용) - 신청자 프로필을 함께 조회한다.
+data class GroupJoinRequestRow(
+    val userId: Long,
+    val name: String,
+    val profileImg: String?,
+    val createdAt: OffsetDateTime
+)

@@ -2,8 +2,11 @@ package kr.hhp227.groupsns_webapp.group
 
 import kr.hhp227.groupsns_webapp.group.dto.CreateGroupRequest
 import kr.hhp227.groupsns_webapp.group.dto.CreateInviteRequest
+import kr.hhp227.groupsns_webapp.group.dto.DiscoverGroupResponse
 import kr.hhp227.groupsns_webapp.group.dto.GroupResponse
 import kr.hhp227.groupsns_webapp.group.dto.InviteResponse
+import kr.hhp227.groupsns_webapp.group.dto.JoinGroupResponse
+import kr.hhp227.groupsns_webapp.group.dto.JoinRequestResponse
 import kr.hhp227.groupsns_webapp.group.dto.MemberResponse
 import kr.hhp227.groupsns_webapp.group.dto.UpdateGroupRequest
 import kr.hhp227.groupsns_webapp.group.dto.UpdateMemberRoleRequest
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import javax.validation.Valid
 
@@ -64,6 +68,51 @@ class GroupController(private val groupService: GroupService) {
     @PostMapping("/join/{code}")
     fun joinByCode(@AuthenticationPrincipal principal: UserPrincipal, @PathVariable code: String): GroupResponse =
         groupService.joinByCode(principal.id, code)
+
+    // 그룹 탐색 - 미가입 그룹을 포함한 전체 그룹 목록(라운지 제외). 문자열 경로라 /{groupId}보다 우선 매칭된다.
+    @GetMapping("/discover")
+    fun discoverGroups(
+        @AuthenticationPrincipal principal: UserPrincipal,
+        @RequestParam(defaultValue = "") query: String,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int
+    ): List<DiscoverGroupResponse> = groupService.discoverGroups(principal.id, query, page, size)
+
+    @PostMapping("/{groupId}/join")
+    fun joinGroup(@AuthenticationPrincipal principal: UserPrincipal, @PathVariable groupId: Long): JoinGroupResponse =
+        groupService.joinGroup(principal.id, groupId)
+
+    @DeleteMapping("/{groupId}/join")
+    fun cancelJoinRequest(@AuthenticationPrincipal principal: UserPrincipal, @PathVariable groupId: Long): ResponseEntity<Void> {
+        groupService.cancelJoinRequest(principal.id, groupId)
+        return ResponseEntity.noContent().build()
+    }
+
+    @GetMapping("/{groupId}/join-requests")
+    fun listJoinRequests(
+        @AuthenticationPrincipal principal: UserPrincipal,
+        @PathVariable groupId: Long
+    ): List<JoinRequestResponse> = groupService.listJoinRequests(principal.id, groupId)
+
+    @PostMapping("/{groupId}/join-requests/{userId}/approve")
+    fun approveJoinRequest(
+        @AuthenticationPrincipal principal: UserPrincipal,
+        @PathVariable groupId: Long,
+        @PathVariable userId: Long
+    ): ResponseEntity<Void> {
+        groupService.approveJoinRequest(principal.id, groupId, userId)
+        return ResponseEntity.noContent().build()
+    }
+
+    @DeleteMapping("/{groupId}/join-requests/{userId}")
+    fun rejectJoinRequest(
+        @AuthenticationPrincipal principal: UserPrincipal,
+        @PathVariable groupId: Long,
+        @PathVariable userId: Long
+    ): ResponseEntity<Void> {
+        groupService.rejectJoinRequest(principal.id, groupId, userId)
+        return ResponseEntity.noContent().build()
+    }
 
     @GetMapping("/{groupId}/members")
     fun listMembers(@AuthenticationPrincipal principal: UserPrincipal, @PathVariable groupId: Long): List<MemberResponse> =

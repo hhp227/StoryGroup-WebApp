@@ -18,6 +18,11 @@ class InvalidInviteException : RuntimeException("유효하지 않거나 만료�
 
 class AlreadyMemberException : RuntimeException("이미 가입된 그룹입니다")
 
+class AlreadyRequestedException : RuntimeException("이미 가입 신청한 그룹입니다")
+
+// 존재하지 않거나 이미 처리(승인/거절/취소)된 가입 신청.
+class JoinRequestNotFoundException : RuntimeException("가입 신청을 찾을 수 없습니다")
+
 // 존재하지 않거나 다른 그룹 소속인 게시글. 그룹과 마찬가지로 비멤버에게는 403이 아니라 404로 통일한다.
 class PostNotFoundException : RuntimeException("게시글을 찾을 수 없습니다")
 
