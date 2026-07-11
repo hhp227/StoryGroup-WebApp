@@ -3,6 +3,7 @@ package kr.hhp227.groupsns_webapp.chat.dto
 import kr.hhp227.groupsns_webapp.chat.ChatRoom
 import kr.hhp227.groupsns_webapp.chat.ChatRoomRead
 import kr.hhp227.groupsns_webapp.chat.DirectRoomRow
+import kr.hhp227.groupsns_webapp.chat.GroupChatRoomRow
 import kr.hhp227.groupsns_webapp.chat.MessageFeedRow
 import java.time.OffsetDateTime
 import javax.validation.Valid
@@ -22,6 +23,27 @@ data class ChatRoomResponse(
 ) {
     companion object {
         fun from(room: ChatRoom) = ChatRoomResponse(room.id, room.groupId, room.name, room.createdAt)
+    }
+}
+
+// 채팅 허브(웹 /dm) 그룹 채팅 섹션 한 줄 — 어느 그룹의 방인지 그룹명을 함께 내려준다.
+data class GroupChatRoomResponse(
+    val id: Long,
+    val groupId: Long,
+    val groupName: String,
+    val isLounge: Boolean,
+    val name: String,
+    val createdAt: OffsetDateTime
+) {
+    companion object {
+        fun from(row: GroupChatRoomRow) = GroupChatRoomResponse(
+            id = row.id,
+            groupId = row.groupId,
+            groupName = row.groupName,
+            isLounge = row.isLounge,
+            name = row.name,
+            createdAt = row.createdAt
+        )
     }
 }
 

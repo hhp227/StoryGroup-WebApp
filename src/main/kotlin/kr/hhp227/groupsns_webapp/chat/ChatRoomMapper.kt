@@ -18,6 +18,18 @@ interface ChatRoomMapper {
     @Select("SELECT chat_room_id AS id, group_id, name, created_at, user_a_id, user_b_id FROM chat_rooms WHERE group_id = #{groupId} ORDER BY created_at ASC")
     fun findByGroup(groupId: Long): List<ChatRoom>
 
+    // 채팅 허브(웹 /dm): 내가 속한 모든 그룹의 채팅방을 그룹명과 함께. 라운지 → 그룹명 → 방 생성 순.
+    @Select(
+        """
+        SELECT r.chat_room_id AS id, r.group_id, g.name AS group_name, g.is_lounge, r.name, r.created_at
+        FROM chat_rooms r
+        JOIN groups g ON g.id = r.group_id
+        JOIN user_groups ug ON ug.group_id = r.group_id AND ug.user_id = #{userId}
+        ORDER BY g.is_lounge DESC, g.name ASC, r.created_at ASC
+        """
+    )
+    fun findGroupRoomsForUser(userId: Long): List<GroupChatRoomRow>
+
     // 두 사람 순서와 무관하게 유니크 인덱스(LEAST/GREATEST)를 그대로 타서 기존 방을 찾는다.
     @Select(
         """

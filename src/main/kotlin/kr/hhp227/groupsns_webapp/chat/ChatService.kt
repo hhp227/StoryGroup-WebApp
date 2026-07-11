@@ -4,6 +4,7 @@ import kr.hhp227.groupsns_webapp.chat.dto.ChatRoomResponse
 import kr.hhp227.groupsns_webapp.chat.dto.CreateChatRoomRequest
 import kr.hhp227.groupsns_webapp.chat.dto.CreateMessageRequest
 import kr.hhp227.groupsns_webapp.chat.dto.DirectRoomResponse
+import kr.hhp227.groupsns_webapp.chat.dto.GroupChatRoomResponse
 import kr.hhp227.groupsns_webapp.chat.dto.MessageResponse
 import kr.hhp227.groupsns_webapp.chat.dto.ReadPositionResponse
 import kr.hhp227.groupsns_webapp.chat.dto.UpdateMessageRequest
@@ -109,6 +110,13 @@ class ChatService(
     fun listDirectRooms(userId: Long): List<DirectRoomResponse> {
         dbSessionMapper.setCurrentUserId(userId)
         return chatRoomMapper.findDirectRoomsForUser(userId).map { DirectRoomResponse.from(it) }
+    }
+
+    // 채팅 허브(웹 /dm): 내가 속한 모든 그룹의 채팅방. 멤버십은 조인 조건이 담당해 별도 검사 불필요.
+    @Transactional
+    fun listMyGroupChatRooms(userId: Long): List<GroupChatRoomResponse> {
+        dbSessionMapper.setCurrentUserId(userId)
+        return chatRoomMapper.findGroupRoomsForUser(userId).map { GroupChatRoomResponse.from(it) }
     }
 
     @Transactional
