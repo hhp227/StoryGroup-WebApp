@@ -61,6 +61,7 @@ class GlobalExceptionHandler {
         GroupMemberNotFoundException::class,
         PostNotFoundException::class,
         CommentNotFoundException::class,
+        EventNotFoundException::class,
         ChatRoomNotFoundException::class,
         MessageNotFoundException::class,
         MeetingNotFoundException::class,
