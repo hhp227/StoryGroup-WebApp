@@ -26,12 +26,11 @@ data class ChatRoomResponse(
     }
 }
 
-// 채팅 허브(웹 /dm) 그룹 채팅 섹션 한 줄 — 어느 그룹의 방인지 그룹명을 함께 내려준다.
+// 채팅 허브(웹 /dm) 그룹 채팅 섹션 한 줄 — 어느 그룹의 방인지 그룹명을 함께 내려준다. 라운지는 제외.
 data class GroupChatRoomResponse(
     val id: Long,
     val groupId: Long,
     val groupName: String,
-    val isLounge: Boolean,
     val name: String,
     val createdAt: OffsetDateTime
 ) {
@@ -40,7 +39,6 @@ data class GroupChatRoomResponse(
             id = row.id,
             groupId = row.groupId,
             groupName = row.groupName,
-            isLounge = row.isLounge,
             name = row.name,
             createdAt = row.createdAt
         )

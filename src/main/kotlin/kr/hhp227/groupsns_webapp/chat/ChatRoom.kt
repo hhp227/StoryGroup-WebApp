@@ -28,12 +28,11 @@ class NewDirectRoomRecord(
     var id: Long = 0
 }
 
-// 채팅 허브(웹 /dm)용: 내가 속한 모든 그룹의 채팅방을 그룹 정보와 함께 가져오는 조회 전용 row.
+// 채팅 허브(웹 /dm)용: 내가 속한 그룹(라운지 제외)의 채팅방을 그룹 정보와 함께 가져오는 조회 전용 row.
 data class GroupChatRoomRow(
     val id: Long,
     val groupId: Long,
     val groupName: String,
-    val isLounge: Boolean,
     val name: String,
     val createdAt: OffsetDateTime
 )
