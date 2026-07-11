@@ -56,6 +56,8 @@ class AlreadyBlockedException : RuntimeException("이미 차단한 사용자입�
 
 class AlreadyFriendException : RuntimeException("이미 친구로 등록한 사용자입니다")
 
+class AlreadyReportedException : RuntimeException("이미 신고한 사용자입니다")
+
 // 존재하지 않거나 이미 해제된 친구 등록.
 class FriendNotFoundException : RuntimeException("친구 등록 내역을 찾을 수 없습니다")
 

@@ -1,8 +1,30 @@
 package kr.hhp227.groupsns_webapp.user.dto
 
 import kr.hhp227.groupsns_webapp.user.User
+import java.time.OffsetDateTime
 import javax.validation.constraints.NotBlank
 import javax.validation.constraints.Size
+
+// 다른 사용자가 보는 공개 프로필 — ProfileResponse(본인용)와 달리 이메일은 내려주지 않는다.
+data class PublicProfileResponse(
+    val id: Long,
+    val name: String,
+    val profileImg: String?,
+    val bio: String?,
+    val statusMessage: String?,
+    val createdAt: OffsetDateTime
+) {
+    companion object {
+        fun from(user: User) = PublicProfileResponse(
+            id = user.id,
+            name = user.name,
+            profileImg = user.profileImg,
+            bio = user.bio,
+            statusMessage = user.statusMessage,
+            createdAt = user.createdAt
+        )
+    }
+}
 
 data class ProfileResponse(
     val id: Long,

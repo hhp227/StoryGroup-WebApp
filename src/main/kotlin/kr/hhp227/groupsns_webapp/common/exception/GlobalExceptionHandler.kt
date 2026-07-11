@@ -37,6 +37,10 @@ class GlobalExceptionHandler {
     fun handleAlreadyFriend(ex: AlreadyFriendException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse("ALREADY_FRIEND", ex.message!!))
 
+    @ExceptionHandler(AlreadyReportedException::class)
+    fun handleAlreadyReported(ex: AlreadyReportedException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse("ALREADY_REPORTED", ex.message!!))
+
     @ExceptionHandler(BlockedUserException::class)
     fun handleBlockedUser(ex: BlockedUserException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("BLOCKED", ex.message!!))

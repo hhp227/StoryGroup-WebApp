@@ -4,6 +4,7 @@ import kr.hhp227.groupsns_webapp.auth.RefreshTokenMapper
 import kr.hhp227.groupsns_webapp.common.exception.UserNotFoundException
 import kr.hhp227.groupsns_webapp.user.dto.ChangePasswordRequest
 import kr.hhp227.groupsns_webapp.user.dto.ProfileResponse
+import kr.hhp227.groupsns_webapp.user.dto.PublicProfileResponse
 import kr.hhp227.groupsns_webapp.user.dto.UpdateProfileRequest
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -18,6 +19,13 @@ class UserService(
 
     fun getProfile(userId: Long): ProfileResponse =
         ProfileResponse.from(userMapper.findById(userId) ?: throw UserNotFoundException())
+
+    // 다른 사용자가 보는 공개 프로필 — 이메일 등 민감 정보는 제외(PublicProfileResponse가 담당).
+    fun getPublicProfile(targetUserId: Long): PublicProfileResponse {
+        val user = userMapper.findById(targetUserId)?.takeIf { it.deletedAt == null }
+            ?: throw UserNotFoundException()
+        return PublicProfileResponse.from(user)
+    }
 
     @Transactional
     fun updateProfile(userId: Long, request: UpdateProfileRequest): ProfileResponse {
