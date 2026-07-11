@@ -54,6 +54,11 @@ class UserNotFoundException : RuntimeException("사용자를 찾을 수 없습�
 
 class AlreadyBlockedException : RuntimeException("이미 차단한 사용자입니다")
 
+class AlreadyFriendException : RuntimeException("이미 친구로 등록한 사용자입니다")
+
+// 존재하지 않거나 이미 해제된 친구 등록.
+class FriendNotFoundException : RuntimeException("친구 등록 내역을 찾을 수 없습니다")
+
 // 존재하지 않거나 이미 해제된 차단 내역.
 class BlockNotFoundException : RuntimeException("차단 내역을 찾을 수 없습니다")
 

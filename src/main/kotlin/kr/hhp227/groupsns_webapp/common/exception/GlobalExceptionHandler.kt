@@ -33,6 +33,10 @@ class GlobalExceptionHandler {
     fun handleAlreadyBlocked(ex: AlreadyBlockedException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse("ALREADY_BLOCKED", ex.message!!))
 
+    @ExceptionHandler(AlreadyFriendException::class)
+    fun handleAlreadyFriend(ex: AlreadyFriendException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse("ALREADY_FRIEND", ex.message!!))
+
     @ExceptionHandler(BlockedUserException::class)
     fun handleBlockedUser(ex: BlockedUserException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("BLOCKED", ex.message!!))
@@ -69,7 +73,8 @@ class GlobalExceptionHandler {
         NotificationNotFoundException::class,
         UserNotFoundException::class,
         JoinRequestNotFoundException::class,
-        BlockNotFoundException::class
+        BlockNotFoundException::class,
+        FriendNotFoundException::class
     )
     fun handleNotFound(ex: RuntimeException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("NOT_FOUND", ex.message!!))
