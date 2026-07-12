@@ -56,7 +56,11 @@ class AlreadyBlockedException : RuntimeException("이미 차단한 사용자입�
 
 class AlreadyFriendException : RuntimeException("이미 친구로 등록한 사용자입니다")
 
-class AlreadyReportedException : RuntimeException("이미 신고한 사용자입니다")
+// 사용자/게시글 신고 공용 - "대기중" 신고가 이미 있는 경우(처리된 뒤에는 재신고 가능).
+class AlreadyReportedException(message: String = "이미 신고한 사용자입니다") : RuntimeException(message)
+
+// 존재하지 않거나 다른 그룹 소속인 신고 내역. Post/Group과 마찬가지로 404로 통일한다.
+class ReportNotFoundException : RuntimeException("신고 내역을 찾을 수 없습니다")
 
 // 존재하지 않거나 이미 해제된 친구 등록.
 class FriendNotFoundException : RuntimeException("친구 등록 내역을 찾을 수 없습니다")

@@ -78,7 +78,8 @@ class GlobalExceptionHandler {
         UserNotFoundException::class,
         JoinRequestNotFoundException::class,
         BlockNotFoundException::class,
-        FriendNotFoundException::class
+        FriendNotFoundException::class,
+        ReportNotFoundException::class
     )
     fun handleNotFound(ex: RuntimeException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("NOT_FOUND", ex.message!!))
