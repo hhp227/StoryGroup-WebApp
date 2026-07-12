@@ -1,6 +1,7 @@
 package kr.hhp227.groupsns_webapp.user.dto
 
 import kr.hhp227.groupsns_webapp.user.User
+import kr.hhp227.groupsns_webapp.user.UserRole
 import java.time.OffsetDateTime
 import javax.validation.constraints.NotBlank
 import javax.validation.constraints.Size
@@ -32,7 +33,9 @@ data class ProfileResponse(
     val email: String,
     val profileImg: String?,
     val bio: String?,
-    val statusMessage: String?
+    val statusMessage: String?,
+    // 웹이 운영자 메뉴(사용자 신고 관리) 노출 여부를 결정하는 데 쓴다. 실제 인가는 서버가 다시 검사한다.
+    val isAdmin: Boolean
 ) {
     companion object {
         fun from(user: User) = ProfileResponse(
@@ -41,7 +44,8 @@ data class ProfileResponse(
             email = user.email,
             profileImg = user.profileImg,
             bio = user.bio,
-            statusMessage = user.statusMessage
+            statusMessage = user.statusMessage,
+            isAdmin = user.role == UserRole.ADMIN
         )
     }
 }
