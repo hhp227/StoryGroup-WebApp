@@ -6,11 +6,13 @@ import kr.hhp227.groupsns_webapp.user.UserMapper
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpStatus
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.security.web.authentication.HttpStatusEntryPoint
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
@@ -30,6 +32,12 @@ class SecurityConfig(
         http
             .csrf().disable()
             .cors().configurationSource(corsConfigurationSource())
+            .and()
+            // 미인증(토큰 만료/부재)은 401로 — Ktor 등 표준 클라이언트의 토큰 갱신은 401에서만
+            // 발화한다. 기본 EntryPoint(403)면 앱이 리프레시를 영영 시도하지 못한다.
+            // 인증됐지만 권한이 부족한 경우는 여전히 403.
+            .exceptionHandling()
+            .authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
             .and()
             .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             .and()
