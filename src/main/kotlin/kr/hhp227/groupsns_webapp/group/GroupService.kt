@@ -63,9 +63,17 @@ class GroupService(
     }
 
     @Transactional
-    fun listMyGroups(userId: Long): List<GroupResponse> {
+    fun listMyGroups(userId: Long, page: Int? = null, size: Int? = null): List<GroupResponse> {
         dbSessionMapper.setCurrentUserId(userId)
-        return userGroupMapper.findGroupsForUser(userId).map { GroupResponse.from(it) }
+        // page/size 둘 다 있어야 페이징 — 하나만 오면 전체 반환(기존 계약)으로 취급
+        val rows = if (page != null && size != null) {
+            val limit = size.coerceIn(1, 50)
+
+            userGroupMapper.findGroupsForUserPaged(userId, limit, page.coerceAtLeast(0) * limit)
+        } else {
+            userGroupMapper.findGroupsForUser(userId)
+        }
+        return rows.map { GroupResponse.from(it) }
     }
 
     @Transactional

@@ -36,9 +36,14 @@ class GroupController(private val groupService: GroupService) {
     ): ResponseEntity<GroupResponse> =
         ResponseEntity.status(HttpStatus.CREATED).body(groupService.createGroup(principal.id, request))
 
+    // page/size 미지정 시 전체 반환 — 기존 클라이언트(웹, 앱 라운지 해석)와의 하위호환.
+    // 지정 시 페이징 — 레거시 user_groups?offset&load_size 계약의 복원(앱 그룹 탭 무한스크롤).
     @GetMapping
-    fun listMyGroups(@AuthenticationPrincipal principal: UserPrincipal): List<GroupResponse> =
-        groupService.listMyGroups(principal.id)
+    fun listMyGroups(
+        @AuthenticationPrincipal principal: UserPrincipal,
+        @RequestParam(required = false) page: Int?,
+        @RequestParam(required = false) size: Int?
+    ): List<GroupResponse> = groupService.listMyGroups(principal.id, page, size)
 
     @GetMapping("/{groupId}")
     fun getGroup(@AuthenticationPrincipal principal: UserPrincipal, @PathVariable groupId: Long): GroupResponse =

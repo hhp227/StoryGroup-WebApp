@@ -41,6 +41,24 @@ interface UserGroupMapper {
     )
     fun findGroupsForUser(userId: Long): List<GroupWithRoleRow>
 
+    // 페이징 변형 — 정렬은 전체 조회와 동일하되 OFFSET 안정성을 위해 id 타이브레이크 추가
+    @Select(
+        """
+        SELECT g.id, g.author_id, g.name, g.image, g.description, g.join_type, g.created_at, g.deleted_at,
+               ug.role AS my_role, g.is_lounge
+        FROM groups g
+        JOIN user_groups ug ON ug.group_id = g.id
+        WHERE ug.user_id = #{userId} AND g.deleted_at IS NULL
+        ORDER BY g.is_lounge DESC, g.created_at DESC, g.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+        """
+    )
+    fun findGroupsForUserPaged(
+        @Param("userId") userId: Long,
+        @Param("limit") limit: Int,
+        @Param("offset") offset: Int
+    ): List<GroupWithRoleRow>
+
     @Select(
         """
         SELECT u.id AS user_id, u.name AS name, u.profile_img AS profile_img, ug.role AS role, ug.created_at AS joined_at
