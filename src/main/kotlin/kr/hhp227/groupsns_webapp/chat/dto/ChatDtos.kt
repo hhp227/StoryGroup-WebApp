@@ -32,7 +32,8 @@ data class GroupChatRoomResponse(
     val groupId: Long,
     val groupName: String,
     val name: String,
-    val createdAt: OffsetDateTime
+    val createdAt: OffsetDateTime,
+    val unreadCount: Long
 ) {
     companion object {
         fun from(row: GroupChatRoomRow) = GroupChatRoomResponse(
@@ -40,7 +41,8 @@ data class GroupChatRoomResponse(
             groupId = row.groupId,
             groupName = row.groupName,
             name = row.name,
-            createdAt = row.createdAt
+            createdAt = row.createdAt,
+            unreadCount = row.unreadCount
         )
     }
 }
@@ -50,7 +52,8 @@ data class DirectRoomResponse(
     val otherUserId: Long,
     val otherUserName: String,
     val otherUserProfileImg: String?,
-    val createdAt: OffsetDateTime
+    val createdAt: OffsetDateTime,
+    val unreadCount: Long
 ) {
     companion object {
         fun from(row: DirectRoomRow) = DirectRoomResponse(
@@ -58,7 +61,8 @@ data class DirectRoomResponse(
             otherUserId = row.otherUserId,
             otherUserName = row.otherUserName,
             otherUserProfileImg = row.otherUserProfileImg,
-            createdAt = row.createdAt
+            createdAt = row.createdAt,
+            unreadCount = row.unreadCount
         )
     }
 }

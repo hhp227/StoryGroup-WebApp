@@ -15,7 +15,9 @@ import kr.hhp227.groupsns_webapp.common.exception.ChatRoomNotFoundException
 import kr.hhp227.groupsns_webapp.common.exception.ForbiddenException
 import kr.hhp227.groupsns_webapp.common.exception.GroupNotFoundException
 import kr.hhp227.groupsns_webapp.common.exception.MessageNotFoundException
+import kr.hhp227.groupsns_webapp.group.GroupMapper
 import kr.hhp227.groupsns_webapp.group.UserGroupMapper
+import kr.hhp227.groupsns_webapp.realtime.ChatBadgeSocketEvent
 import kr.hhp227.groupsns_webapp.realtime.ChatSocketEvent
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
@@ -27,6 +29,7 @@ class ChatService(
     private val messageMapper: MessageMapper,
     private val chatRoomReadMapper: ChatRoomReadMapper,
     private val userGroupMapper: UserGroupMapper,
+    private val groupMapper: GroupMapper,
     private val userBlockMapper: UserBlockMapper,
     private val dbSessionMapper: DbSessionMapper,
     // WebSocket 브로드캐스트는 ChatEventBroadcaster가 커밋 후에 처리 — 여기선 이벤트 발행만.
@@ -58,6 +61,7 @@ class ChatService(
 
         val record = buildNewMessage(chatRoomId, userId, request)
         messageMapper.insert(record)
+        publishGroupBadgeEvents(userId, groupId, chatRoomId, record.id)
         return loadMessage(record.id, chatRoomId).also { eventPublisher.publishEvent(ChatSocketEvent.created(it)) }
     }
 
@@ -127,6 +131,8 @@ class ChatService(
 
         val record = buildNewMessage(chatRoomId, userId, request)
         messageMapper.insert(record)
+        val otherUserId = if (room.userAId == userId) room.userBId!! else room.userAId!!
+        eventPublisher.publishEvent(ChatBadgeSocketEvent(otherUserId, chatRoomId, record.id, userId))
         return loadMessage(record.id, chatRoomId).also { eventPublisher.publishEvent(ChatSocketEvent.created(it)) }
     }
 
@@ -202,6 +208,18 @@ class ChatService(
             attachmentType = attachment?.contentType?.take(100),
             attachmentSize = attachment?.size
         )
+    }
+
+    // 그룹방 새 메시지의 뱃지 수신자 = 그룹 멤버 전원 - 발신자 - 발신자를 차단한 사용자.
+    // 라운지는 전원 자동 가입이라 허브 목록에서도 빠져 있으므로(NotificationService의 라운지 제외와 같은 이유) 보내지 않는다.
+    private fun publishGroupBadgeEvents(senderId: Long, groupId: Long, chatRoomId: Long, messageId: Long) {
+        val group = groupMapper.findById(groupId) ?: return
+        if (group.isLounge) return
+        userGroupMapper.findMembers(groupId)
+            .asSequence()
+            .map { it.userId }
+            .filter { it != senderId && !userBlockMapper.exists(it, senderId) }
+            .forEach { eventPublisher.publishEvent(ChatBadgeSocketEvent(it, chatRoomId, messageId, senderId)) }
     }
 
     private fun loadMessage(messageId: Long, chatRoomId: Long): MessageResponse {

@@ -34,7 +34,8 @@ data class GroupChatRoomRow(
     val groupId: Long,
     val groupName: String,
     val name: String,
-    val createdAt: OffsetDateTime
+    val createdAt: OffsetDateTime,
+    val unreadCount: Long
 )
 
 // DM 목록에서 상대방 정보(이름/프로필)를 조인해서 가져오는 조회 전용 row.
@@ -43,5 +44,6 @@ data class DirectRoomRow(
     val otherUserId: Long,
     val otherUserName: String,
     val otherUserProfileImg: String?,
-    val createdAt: OffsetDateTime
+    val createdAt: OffsetDateTime,
+    val unreadCount: Long
 )

@@ -13,4 +13,10 @@ class NotificationBroadcaster(private val messagingTemplate: SimpMessagingTempla
     fun on(event: NotificationSocketEvent) {
         messagingTemplate.convertAndSendToUser(event.recipientId.toString(), "/queue/notifications", event)
     }
+
+    // 채팅 뱃지도 같은 개인 큐로 — 클라이언트는 envelope의 type(NOTIFICATION/CHAT_MESSAGE/CALL_INVITE)으로 분기한다.
+    @TransactionalEventListener
+    fun on(event: ChatBadgeSocketEvent) {
+        messagingTemplate.convertAndSendToUser(event.recipientId.toString(), "/queue/notifications", event)
+    }
 }
