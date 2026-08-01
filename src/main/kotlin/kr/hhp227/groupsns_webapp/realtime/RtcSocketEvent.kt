@@ -38,7 +38,10 @@ data class RtcSignalEvent(
 data class CallInviteEvent(
     val chatRoomId: Long,
     val fromUserId: Long,
-    val fromUserName: String
+    val fromUserName: String,
+    // 그룹 방 벨울림(페이스톡 전환) — DM이면 null. 수신 측이 배너 제목과 이동 경로(그룹 채팅)를 만든다.
+    val groupId: Long? = null,
+    val roomName: String? = null
 ) {
     val type: String = "CALL_INVITE"
 }

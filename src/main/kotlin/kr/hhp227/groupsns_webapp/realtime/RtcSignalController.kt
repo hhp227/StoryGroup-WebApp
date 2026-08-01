@@ -1,6 +1,8 @@
 package kr.hhp227.groupsns_webapp.realtime
 
 import kr.hhp227.groupsns_webapp.chat.ChatRoomMapper
+import kr.hhp227.groupsns_webapp.group.GroupMapper
+import kr.hhp227.groupsns_webapp.group.UserGroupMapper
 import kr.hhp227.groupsns_webapp.security.UserPrincipal
 import org.springframework.messaging.handler.annotation.DestinationVariable
 import org.springframework.messaging.handler.annotation.MessageMapping
@@ -16,7 +18,9 @@ import java.security.Principal
 class RtcSignalController(
     private val tracker: RtcRoomTracker,
     private val broadcaster: RtcBroadcaster,
-    private val chatRoomMapper: ChatRoomMapper
+    private val chatRoomMapper: ChatRoomMapper,
+    private val groupMapper: GroupMapper,
+    private val userGroupMapper: UserGroupMapper
 ) {
     @MessageMapping("/rtc/meetings/{meetingId}/signal")
     fun meetingSignal(@DestinationVariable meetingId: Long, @Payload request: RtcSignalRequest, principal: Principal) =
@@ -26,19 +30,31 @@ class RtcSignalController(
     fun chatRoomSignal(@DestinationVariable chatRoomId: Long, @Payload request: RtcSignalRequest, principal: Principal) =
         relay("chat-rooms/$chatRoomId", request, principal)
 
-    // DM 통화 벨울림(D6). 상대는 통화 화면에 없어도 헤더의 전역 알림 소켓으로 받는다.
-    // DM 방이 아니면 무시 — 그룹 회의는 기존 MEETING_STARTED DB 알림이 이미 있다.
+    // 통화 벨울림(D6, 페이스톡 전환으로 그룹 방 포함). 수신자는 통화 화면에 없어도
+    // 헤더/셸의 전역 알림 소켓으로 받는다. DM=상대 1명, 그룹 방=방 멤버(그룹원) 전원 팬아웃.
     @MessageMapping("/rtc/chat-rooms/{chatRoomId}/invite")
     fun invite(@DestinationVariable chatRoomId: Long, principal: Principal) {
         val user = principal.asUserPrincipal()
         val room = chatRoomMapper.findById(chatRoomId) ?: return
-        if (room.groupId != null) return
-        val otherUserId = when (user.id) {
-            room.userAId -> room.userBId
-            room.userBId -> room.userAId
-            else -> null
-        } ?: return
-        broadcaster.relayInvite(otherUserId, CallInviteEvent(chatRoomId, user.id, user.name))
+        // 이미 진행 중인 통화에 합류하는 경우엔 다시 울리지 않는다 — 발신자 외 인원이 로스터에 있으면 합류다.
+        // (탭 순서상 발신자 본인은 이 시점에 이미 로스터에 있을 수 있어 본인은 세지 않는다)
+        if (tracker.roster("chat-rooms/$chatRoomId").any { it.userId != user.id }) return
+        if (room.groupId == null) {
+            val otherUserId = when (user.id) {
+                room.userAId -> room.userBId
+                room.userBId -> room.userAId
+                else -> null
+            } ?: return
+            broadcaster.relayInvite(otherUserId, CallInviteEvent(chatRoomId, user.id, user.name))
+        } else {
+            val group = groupMapper.findById(room.groupId) ?: return
+            // 라운지는 전 사용자가 자동 멤버 — 벨울림 팬아웃 대상이 아니다(통화 자체는 막지 않는다)
+            if (group.isLounge) return
+            val event = CallInviteEvent(chatRoomId, user.id, user.name, room.groupId, group.name)
+            userGroupMapper.findMembers(room.groupId)
+                .filter { it.userId != user.id }
+                .forEach { broadcaster.relayInvite(it.userId, event) }
+        }
     }
 
     private fun relay(roomKey: String, request: RtcSignalRequest, principal: Principal) {

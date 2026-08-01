@@ -34,6 +34,12 @@ class RtcRoomTracker(
         rooms[roomKey]?.values?.any { it.userId == userId } ?: false
     }
 
+    // 로스터 스냅숏 — 벨울림 재발송 게이트(진행 중 통화 합류는 울리지 않음)와
+    // "통화 중 N명" 미리보기 REST(RtcRosterController)용. PEERS 방송과 같은 유저 단위 중복 제거.
+    fun roster(roomKey: String): List<RtcPeer> = synchronized(this) {
+        rooms[roomKey]?.values?.distinctBy { it.userId }?.toList() ?: emptyList()
+    }
+
     @EventListener
     fun onSubscribe(event: SessionSubscribeEvent) {
         val accessor = StompHeaderAccessor.wrap(event.message)
