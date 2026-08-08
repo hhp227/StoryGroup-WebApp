@@ -32,25 +32,32 @@ class RtcSignalController(
 
     // 통화 벨울림(D6, 페이스톡 전환으로 그룹 방 포함). 수신자는 통화 화면에 없어도
     // 헤더/셸의 전역 알림 소켓으로 받는다. DM=상대 1명, 그룹 방=방 멤버(그룹원) 전원 팬아웃.
+    // body는 선택(CallInviteRequest) — 빈 바디는 페이스톡(video=true)으로 간주한다(웹·구버전 앱 하위호환).
     @MessageMapping("/rtc/chat-rooms/{chatRoomId}/invite")
-    fun invite(@DestinationVariable chatRoomId: Long, principal: Principal) {
+    fun invite(
+        @DestinationVariable chatRoomId: Long,
+        @Payload(required = false) request: CallInviteRequest?,
+        principal: Principal
+    ) {
         val user = principal.asUserPrincipal()
         val room = chatRoomMapper.findById(chatRoomId) ?: return
         // 이미 진행 중인 통화에 합류하는 경우엔 다시 울리지 않는다 — 발신자 외 인원이 로스터에 있으면 합류다.
         // (탭 순서상 발신자 본인은 이 시점에 이미 로스터에 있을 수 있어 본인은 세지 않는다)
         if (tracker.roster("chat-rooms/$chatRoomId").any { it.userId != user.id }) return
+        val video = request?.video ?: true
+
         if (room.groupId == null) {
             val otherUserId = when (user.id) {
                 room.userAId -> room.userBId
                 room.userBId -> room.userAId
                 else -> null
             } ?: return
-            broadcaster.relayInvite(otherUserId, CallInviteEvent(chatRoomId, user.id, user.name))
+            broadcaster.relayInvite(otherUserId, CallInviteEvent(chatRoomId, user.id, user.name, video = video))
         } else {
             val group = groupMapper.findById(room.groupId) ?: return
             // 라운지는 전 사용자가 자동 멤버 — 벨울림 팬아웃 대상이 아니다(통화 자체는 막지 않는다)
             if (group.isLounge) return
-            val event = CallInviteEvent(chatRoomId, user.id, user.name, room.groupId, group.name)
+            val event = CallInviteEvent(chatRoomId, user.id, user.name, room.groupId, group.name, video)
             userGroupMapper.findMembers(room.groupId)
                 .filter { it.userId != user.id }
                 .forEach { broadcaster.relayInvite(it.userId, event) }

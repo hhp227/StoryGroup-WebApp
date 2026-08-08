@@ -33,6 +33,12 @@ data class RtcSignalEvent(
     val payload: String
 )
 
+// 클라이언트가 /app/rtc/chat-rooms/{id}/invite로 SEND하는 body(선택).
+// 빈 바디(웹·구버전 앱)는 페이스톡(video=true)으로 간주한다 — 하위호환.
+data class CallInviteRequest(
+    val video: Boolean = true
+)
+
 // DM 통화 벨울림(D6) — 상대의 개인 알림 큐(/user/queue/notifications)로 나간다.
 // NotificationSocketEvent와 같은 큐를 타므로 type 필드로 구분된다(그쪽은 "NOTIFICATION").
 data class CallInviteEvent(
@@ -41,7 +47,9 @@ data class CallInviteEvent(
     val fromUserName: String,
     // 그룹 방 벨울림(페이스톡 전환) — DM이면 null. 수신 측이 배너 제목과 이동 경로(그룹 채팅)를 만든다.
     val groupId: Long? = null,
-    val roomName: String? = null
+    val roomName: String? = null,
+    // false면 보이스톡 — 수신 측이 배너 표시와 카메라 OFF 입장을 결정한다(모바일 전용, 웹은 항상 true)
+    val video: Boolean = true
 ) {
     val type: String = "CALL_INVITE"
 }
