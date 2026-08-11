@@ -79,6 +79,23 @@ interface GroupMapper {
         @Param("offset") offset: Int
     ): List<DiscoverGroupRow>
 
+    // 내가 가입 신청중(PENDING)인 그룹 - 탐색과 같은 행 모양(DiscoverGroupRow)으로 조회해
+    // 응답 계약(DiscoverGroupResponse)을 재사용한다. 내 신청 행은 RLS 정책상 항상 보이고,
+    // 멤버 수는 탐색과 동일하게 SECURITY DEFINER 함수로 계산한다.
+    @Select(
+        """
+        SELECT g.id, g.name, g.image, g.description, g.join_type, g.created_at,
+               group_member_count(g.id) AS member_count,
+               false AS is_member,
+               true AS is_pending
+        FROM group_join_requests jr
+        JOIN groups g ON g.id = jr.group_id
+        WHERE jr.user_id = #{userId} AND g.deleted_at IS NULL
+        ORDER BY jr.created_at DESC
+        """
+    )
+    fun findPendingGroupsForUser(userId: Long): List<DiscoverGroupRow>
+
     @Update("UPDATE groups SET deleted_at = now() WHERE id = #{id} AND deleted_at IS NULL")
     fun softDelete(id: Long): Int
 }

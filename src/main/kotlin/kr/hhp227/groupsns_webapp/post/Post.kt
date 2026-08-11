@@ -34,5 +34,8 @@ data class PostFeedRow(
     val authorProfileImg: String?,
     val text: String,
     val isNotice: Boolean,
-    val createdAt: OffsetDateTime
+    val createdAt: OffsetDateTime,
+    val likeCount: Int,
+    val replyCount: Int,
+    val likedByMe: Boolean
 )

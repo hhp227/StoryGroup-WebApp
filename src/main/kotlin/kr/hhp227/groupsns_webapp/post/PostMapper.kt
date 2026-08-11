@@ -42,7 +42,16 @@ interface PostMapper {
     @Select(
         """
         SELECT p.id, p.group_id, p.user_id, u.name AS author_name, u.profile_img AS author_profile_img,
-               p.text, p.is_notice, p.created_at
+               p.text, p.is_notice, p.created_at,
+               (SELECT COUNT(*)::int FROM post_likes pl WHERE pl.post_id = p.id) AS like_count,
+               (SELECT COUNT(*)::int FROM replys r
+                  JOIN user_replys ur ON ur.reply_id = r.id
+                 WHERE ur.post_id = p.id AND r.deleted_at IS NULL
+                   AND NOT EXISTS (SELECT 1 FROM user_blocks ub2
+                                   WHERE ub2.blocker_id = #{viewerId} AND ub2.blocked_id = r.user_id)
+               ) AS reply_count,
+               EXISTS(SELECT 1 FROM post_likes plm
+                      WHERE plm.post_id = p.id AND plm.user_id = #{viewerId}) AS liked_by_me
         FROM posts p
         JOIN users u ON u.id = p.user_id
         WHERE p.id = #{id} AND p.group_id = #{groupId} AND p.deleted_at IS NULL
@@ -55,7 +64,16 @@ interface PostMapper {
     @Select(
         """
         SELECT p.id, p.group_id, p.user_id, u.name AS author_name, u.profile_img AS author_profile_img,
-               p.text, p.is_notice, p.created_at
+               p.text, p.is_notice, p.created_at,
+               (SELECT COUNT(*)::int FROM post_likes pl WHERE pl.post_id = p.id) AS like_count,
+               (SELECT COUNT(*)::int FROM replys r
+                  JOIN user_replys ur ON ur.reply_id = r.id
+                 WHERE ur.post_id = p.id AND r.deleted_at IS NULL
+                   AND NOT EXISTS (SELECT 1 FROM user_blocks ub2
+                                   WHERE ub2.blocker_id = #{viewerId} AND ub2.blocked_id = r.user_id)
+               ) AS reply_count,
+               EXISTS(SELECT 1 FROM post_likes plm
+                      WHERE plm.post_id = p.id AND plm.user_id = #{viewerId}) AS liked_by_me
         FROM posts p
         JOIN users u ON u.id = p.user_id
         WHERE p.group_id = #{groupId} AND p.is_notice = false AND p.deleted_at IS NULL
@@ -75,7 +93,16 @@ interface PostMapper {
     @Select(
         """
         SELECT p.id, p.group_id, p.user_id, u.name AS author_name, u.profile_img AS author_profile_img,
-               p.text, p.is_notice, p.created_at
+               p.text, p.is_notice, p.created_at,
+               (SELECT COUNT(*)::int FROM post_likes pl WHERE pl.post_id = p.id) AS like_count,
+               (SELECT COUNT(*)::int FROM replys r
+                  JOIN user_replys ur ON ur.reply_id = r.id
+                 WHERE ur.post_id = p.id AND r.deleted_at IS NULL
+                   AND NOT EXISTS (SELECT 1 FROM user_blocks ub2
+                                   WHERE ub2.blocker_id = #{viewerId} AND ub2.blocked_id = r.user_id)
+               ) AS reply_count,
+               EXISTS(SELECT 1 FROM post_likes plm
+                      WHERE plm.post_id = p.id AND plm.user_id = #{viewerId}) AS liked_by_me
         FROM posts p
         JOIN users u ON u.id = p.user_id
         WHERE p.group_id = #{groupId} AND p.is_notice = true AND p.deleted_at IS NULL

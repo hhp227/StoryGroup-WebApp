@@ -172,6 +172,14 @@ class GroupService(
         if (groupJoinRequestMapper.delete(groupId, userId) == 0) throw JoinRequestNotFoundException()
     }
 
+    // 내가 가입 신청중(PENDING)인 그룹 목록 - 그룹 탭 "가입 신청중" 섹션용. 탐색 응답과 같은
+    // 모양(membership=PENDING)으로 내려 클라이언트가 카드/신청 취소 UI를 재사용한다.
+    @Transactional
+    fun listMyJoinRequestedGroups(userId: Long): List<DiscoverGroupResponse> {
+        dbSessionMapper.setCurrentUserId(userId)
+        return groupMapper.findPendingGroupsForUser(userId).map { DiscoverGroupResponse.from(it) }
+    }
+
     @Transactional
     fun listJoinRequests(userId: Long, groupId: Long): List<JoinRequestResponse> {
         dbSessionMapper.setCurrentUserId(userId)

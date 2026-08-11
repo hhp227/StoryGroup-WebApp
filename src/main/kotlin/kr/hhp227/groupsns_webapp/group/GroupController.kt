@@ -94,6 +94,11 @@ class GroupController(private val groupService: GroupService) {
         return ResponseEntity.noContent().build()
     }
 
+    // 내가 가입 신청중(PENDING)인 그룹 목록 - 문자열 경로라 /{groupId}/join-requests와 충돌하지 않는다.
+    @GetMapping("/join-requests/mine")
+    fun listMyJoinRequestedGroups(@AuthenticationPrincipal principal: UserPrincipal): List<DiscoverGroupResponse> =
+        groupService.listMyJoinRequestedGroups(principal.id)
+
     @GetMapping("/{groupId}/join-requests")
     fun listJoinRequests(
         @AuthenticationPrincipal principal: UserPrincipal,

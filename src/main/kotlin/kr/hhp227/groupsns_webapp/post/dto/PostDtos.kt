@@ -97,7 +97,10 @@ data class PostResponse(
     val images: List<ImageResponse>,
     val videos: List<VideoResponse>,
     val isNotice: Boolean,
-    val createdAt: OffsetDateTime
+    val createdAt: OffsetDateTime,
+    val likeCount: Int,
+    val replyCount: Int,
+    val likedByMe: Boolean
 ) {
     companion object {
         // attachments는 images 테이블의 이미지+동영상 혼합 목록 — media_type으로 갈라서 내려준다.
@@ -112,7 +115,10 @@ data class PostResponse(
             images = attachments.filter { it.mediaType != MEDIA_TYPE_VIDEO }.map { ImageResponse.from(it) },
             videos = attachments.filter { it.mediaType == MEDIA_TYPE_VIDEO }.map { VideoResponse.from(it) },
             isNotice = row.isNotice,
-            createdAt = row.createdAt
+            createdAt = row.createdAt,
+            likeCount = row.likeCount,
+            replyCount = row.replyCount,
+            likedByMe = row.likedByMe
         )
     }
 }
