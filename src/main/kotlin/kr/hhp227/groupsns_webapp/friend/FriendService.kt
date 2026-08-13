@@ -5,6 +5,7 @@ import kr.hhp227.groupsns_webapp.common.exception.AlreadyFriendException
 import kr.hhp227.groupsns_webapp.common.exception.FriendNotFoundException
 import kr.hhp227.groupsns_webapp.common.exception.UserNotFoundException
 import kr.hhp227.groupsns_webapp.friend.dto.FriendResponse
+import kr.hhp227.groupsns_webapp.realtime.UserPresenceTracker
 import kr.hhp227.groupsns_webapp.user.UserMapper
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -14,12 +15,14 @@ import org.springframework.transaction.annotation.Transactional
 class FriendService(
     private val userFriendMapper: UserFriendMapper,
     private val userMapper: UserMapper,
-    private val dbSessionMapper: DbSessionMapper
+    private val dbSessionMapper: DbSessionMapper,
+    private val userPresenceTracker: UserPresenceTracker
 ) {
     @Transactional
     fun listFriends(userId: Long): List<FriendResponse> {
         dbSessionMapper.setCurrentUserId(userId)
-        return userFriendMapper.findFriends(userId).map { FriendResponse.from(it) }
+        return userFriendMapper.findFriends(userId)
+            .map { FriendResponse.from(it, online = userPresenceTracker.isOnline(it.userId)) }
     }
 
     @Transactional
