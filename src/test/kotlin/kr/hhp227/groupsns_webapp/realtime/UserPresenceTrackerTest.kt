@@ -107,6 +107,21 @@ class UserPresenceTrackerTest {
         assertFalse(tracker.isOnline(1L))
     }
 
+    @Test
+    fun `유예 창에서는 스냅샷도 온라인을 유지한다`() {
+        Mockito.`when`(userFriendMapper.findFollowerIds(1L)).thenReturn(listOf(2L))
+        tracker.onSubscribe(subscribeEvent("s1", "sub-0", userId = 1L))
+
+        tracker.onDisconnect(disconnectEvent("s1"))
+
+        // 오프라인이 발행되기 전(유예 중)에는 스냅샷이 여전히 온라인 — 발행 상태와 일치
+        assertTrue(tracker.isOnline(1L))
+        val runnable = ArgumentCaptor.forClass(Runnable::class.java)
+        Mockito.verify(taskScheduler).schedule(runnable.capture(), Mockito.any(Instant::class.java))
+        runnable.value.run()
+        assertFalse(tracker.isOnline(1L))
+    }
+
     private fun subscribeEvent(
         sessionId: String,
         subscriptionId: String,

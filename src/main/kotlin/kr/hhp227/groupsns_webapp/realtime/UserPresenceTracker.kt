@@ -37,7 +37,10 @@ class UserPresenceTracker(
     // 마지막으로 발행한 온라인 유저 집합 — 실제 전환에만 발행한다(유예 내 재접속 시 재발행 억제).
     private val broadcastOnline = mutableSetOf<Long>()
 
-    fun isOnline(userId: Long): Boolean = synchronized(this) { userSessions[userId]?.isNotEmpty() == true }
+    // 스냅샷은 세션 유무가 아니라 "발행된 상태"를 읽는다 — 유예 창(세션 0이지만 오프라인 미발행)에
+    // 조회한 팔로워가 오프라인 스냅샷을 받고, 그 뒤 유예 내 재접속으로 어떤 발행도 안 나가면
+    // 영구히 오프라인으로 남는 불일치를 막는다. 유예 뒤 진짜 오프라인이면 발행이 스냅샷 보유자에게 도달해 수렴한다.
+    fun isOnline(userId: Long): Boolean = synchronized(this) { userId in broadcastOnline }
 
     @EventListener
     fun onSubscribe(event: SessionSubscribeEvent) {
