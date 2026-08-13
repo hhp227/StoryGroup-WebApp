@@ -43,4 +43,10 @@ interface UserFriendMapper {
         """
     )
     fun findFriends(userId: Long): List<FriendRow>
+
+    // 역방향 조회 — "이 유저를 친구로 등록한 사람들"(프레즌스 팬아웃 대상).
+    // friend_id 단독 인덱스는 없지만 소규모라 seq scan으로 충분(인덱스 추가 없음 — 마이그레이션 0건 유지).
+    // 앱 DB 롤이 테이블 소유자라 RLS에 걸리지 않는다 — 세션 userId 설정 없이 리스너 스레드에서 호출된다.
+    @Select("SELECT user_id FROM user_friends WHERE friend_id = #{friendId}")
+    fun findFollowerIds(@Param("friendId") friendId: Long): List<Long>
 }
