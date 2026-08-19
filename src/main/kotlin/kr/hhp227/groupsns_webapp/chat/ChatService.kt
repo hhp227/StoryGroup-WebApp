@@ -61,8 +61,9 @@ class ChatService(
 
         val record = buildNewMessage(chatRoomId, userId, request)
         messageMapper.insert(record)
-        publishGroupBadgeEvents(userId, groupId, chatRoomId, record.id)
-        return loadMessage(record.id, chatRoomId).also { eventPublisher.publishEvent(ChatSocketEvent.created(it)) }
+        val message = loadMessage(record.id, chatRoomId)
+        publishGroupBadgeEvents(userId, groupId, message)
+        return message.also { eventPublisher.publishEvent(ChatSocketEvent.created(it)) }
     }
 
     @Transactional
@@ -131,9 +132,10 @@ class ChatService(
 
         val record = buildNewMessage(chatRoomId, userId, request)
         messageMapper.insert(record)
+        val message = loadMessage(record.id, chatRoomId)
         val otherUserId = if (room.userAId == userId) room.userBId!! else room.userAId!!
-        eventPublisher.publishEvent(ChatBadgeSocketEvent(otherUserId, chatRoomId, record.id, userId))
-        return loadMessage(record.id, chatRoomId).also { eventPublisher.publishEvent(ChatSocketEvent.created(it)) }
+        eventPublisher.publishEvent(badgeEvent(otherUserId, message))
+        return message.also { eventPublisher.publishEvent(ChatSocketEvent.created(it)) }
     }
 
     @Transactional
@@ -212,15 +214,27 @@ class ChatService(
 
     // 그룹방 새 메시지의 뱃지 수신자 = 그룹 멤버 전원 - 발신자 - 발신자를 차단한 사용자.
     // 라운지는 전원 자동 가입이라 허브 목록에서도 빠져 있으므로(NotificationService의 라운지 제외와 같은 이유) 보내지 않는다.
-    private fun publishGroupBadgeEvents(senderId: Long, groupId: Long, chatRoomId: Long, messageId: Long) {
+    private fun publishGroupBadgeEvents(senderId: Long, groupId: Long, message: MessageResponse) {
         val group = groupMapper.findById(groupId) ?: return
         if (group.isLounge) return
         userGroupMapper.findMembers(groupId)
             .asSequence()
             .map { it.userId }
             .filter { it != senderId && !userBlockMapper.exists(it, senderId) }
-            .forEach { eventPublisher.publishEvent(ChatBadgeSocketEvent(it, chatRoomId, messageId, senderId)) }
+            .forEach { eventPublisher.publishEvent(badgeEvent(it, message)) }
     }
+
+    // 뱃지 수신자는 발신자를 차단한 사용자가 이미 걸러져 있어(그룹은 위 필터, DM은 전송 차단)
+    // 미리보기 본문을 실어도 목록 REST(last_message_*)와 가시성이 어긋나지 않는다.
+    private fun badgeEvent(recipientId: Long, message: MessageResponse) = ChatBadgeSocketEvent(
+        recipientId = recipientId,
+        chatRoomId = message.chatRoomId,
+        messageId = message.id,
+        senderId = message.userId,
+        text = message.text,
+        attachmentType = message.attachment?.contentType,
+        createdAt = message.createdAt
+    )
 
     private fun loadMessage(messageId: Long, chatRoomId: Long): MessageResponse {
         val row = messageMapper.findFeedRowById(messageId, chatRoomId) ?: throw MessageNotFoundException()

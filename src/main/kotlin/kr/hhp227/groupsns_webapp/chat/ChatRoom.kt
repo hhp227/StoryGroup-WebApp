@@ -29,13 +29,18 @@ class NewDirectRoomRecord(
 }
 
 // 채팅 허브(웹 /dm)용: 내가 속한 그룹(라운지 제외)의 채팅방을 그룹 정보와 함께 가져오는 조회 전용 row.
+// lastMessage*는 마지막 가시 메시지(삭제·내가 차단한 사용자 제외) — 방에 메시지가 없으면 셋 다 null,
+// 첨부 전용 메시지면 text가 빈 문자열이고 type(attachment_type)으로 종류를 표시한다.
 data class GroupChatRoomRow(
     val id: Long,
     val groupId: Long,
     val groupName: String,
     val name: String,
     val createdAt: OffsetDateTime,
-    val unreadCount: Long
+    val unreadCount: Long,
+    val lastMessageText: String?,
+    val lastMessageType: String?,
+    val lastMessageAt: OffsetDateTime?
 )
 
 // DM 목록에서 상대방 정보(이름/프로필)를 조인해서 가져오는 조회 전용 row.
@@ -45,5 +50,8 @@ data class DirectRoomRow(
     val otherUserName: String,
     val otherUserProfileImg: String?,
     val createdAt: OffsetDateTime,
-    val unreadCount: Long
+    val unreadCount: Long,
+    val lastMessageText: String?,
+    val lastMessageType: String?,
+    val lastMessageAt: OffsetDateTime?
 )

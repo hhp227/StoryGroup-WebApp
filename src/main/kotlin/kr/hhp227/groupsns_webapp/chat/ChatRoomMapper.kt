@@ -20,7 +20,7 @@ interface ChatRoomMapper {
 
     // 채팅 허브(웹 /dm): 내가 속한 그룹의 채팅방을 그룹명과 함께. 그룹명 → 방 생성 순.
     // 라운지는 전원이 자동 포함된 그룹이라 "내 채팅 목록" 관점에서 의미가 없어 제외한다.
-    // unread_count는 메시지 피드(findFeedByRoom)와 같은 가시성 규칙 — 삭제/내가 차단한 사용자의 메시지는 세지 않는다.
+    // unread_count·last_message_*는 메시지 피드(findFeedByRoom)와 같은 가시성 규칙 — 삭제/내가 차단한 사용자의 메시지는 제외한다.
     @Select(
         """
         SELECT r.chat_room_id AS id, r.group_id, g.name AS group_name, r.name, r.created_at,
@@ -29,10 +29,19 @@ interface ChatRoomMapper {
                   AND m.message_id > COALESCE((SELECT cr.last_read_message_id FROM chat_room_reads cr
                                                WHERE cr.chat_room_id = r.chat_room_id AND cr.user_id = #{userId}), 0)
                   AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = #{userId} AND ub.blocked_id = m.user_id)
-               ) AS unread_count
+               ) AS unread_count,
+               lm.message AS last_message_text, lm.attachment_type AS last_message_type, lm.created_at AS last_message_at
         FROM chat_rooms r
         JOIN groups g ON g.id = r.group_id
         JOIN user_groups ug ON ug.group_id = r.group_id AND ug.user_id = #{userId}
+        LEFT JOIN LATERAL (
+            SELECT m.message, m.attachment_type, m.created_at
+            FROM messages m
+            WHERE m.chat_room_id = r.chat_room_id AND m.deleted_at IS NULL
+              AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = #{userId} AND ub.blocked_id = m.user_id)
+            ORDER BY m.message_id DESC
+            LIMIT 1
+        ) lm ON TRUE
         WHERE NOT g.is_lounge
         ORDER BY g.name ASC, r.created_at ASC
         """
@@ -66,9 +75,18 @@ interface ChatRoomMapper {
                   AND m.message_id > COALESCE((SELECT cr.last_read_message_id FROM chat_room_reads cr
                                                WHERE cr.chat_room_id = r.chat_room_id AND cr.user_id = #{userId}), 0)
                   AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = #{userId} AND ub.blocked_id = m.user_id)
-               ) AS unread_count
+               ) AS unread_count,
+               lm.message AS last_message_text, lm.attachment_type AS last_message_type, lm.created_at AS last_message_at
         FROM chat_rooms r
         JOIN users u ON u.id = CASE WHEN r.user_a_id = #{userId} THEN r.user_b_id ELSE r.user_a_id END
+        LEFT JOIN LATERAL (
+            SELECT m.message, m.attachment_type, m.created_at
+            FROM messages m
+            WHERE m.chat_room_id = r.chat_room_id AND m.deleted_at IS NULL
+              AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = #{userId} AND ub.blocked_id = m.user_id)
+            ORDER BY m.message_id DESC
+            LIMIT 1
+        ) lm ON TRUE
         WHERE r.group_id IS NULL AND (r.user_a_id = #{userId} OR r.user_b_id = #{userId})
         ORDER BY r.created_at DESC
         """

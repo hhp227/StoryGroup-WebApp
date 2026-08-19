@@ -27,13 +27,18 @@ data class ChatRoomResponse(
 }
 
 // 채팅 허브(웹 /dm) 그룹 채팅 섹션 한 줄 — 어느 그룹의 방인지 그룹명을 함께 내려준다. 라운지는 제외.
+// lastMessage*는 목록 미리보기용 마지막 가시 메시지 — 메시지가 없으면 셋 다 null,
+// 첨부 전용 메시지면 lastMessageText가 빈 문자열이고 lastMessageType(첨부 contentType)으로 종류를 구분한다.
 data class GroupChatRoomResponse(
     val id: Long,
     val groupId: Long,
     val groupName: String,
     val name: String,
     val createdAt: OffsetDateTime,
-    val unreadCount: Long
+    val unreadCount: Long,
+    val lastMessageText: String?,
+    val lastMessageType: String?,
+    val lastMessageAt: OffsetDateTime?
 ) {
     companion object {
         fun from(row: GroupChatRoomRow) = GroupChatRoomResponse(
@@ -42,7 +47,10 @@ data class GroupChatRoomResponse(
             groupName = row.groupName,
             name = row.name,
             createdAt = row.createdAt,
-            unreadCount = row.unreadCount
+            unreadCount = row.unreadCount,
+            lastMessageText = row.lastMessageText,
+            lastMessageType = row.lastMessageType,
+            lastMessageAt = row.lastMessageAt
         )
     }
 }
@@ -53,7 +61,10 @@ data class DirectRoomResponse(
     val otherUserName: String,
     val otherUserProfileImg: String?,
     val createdAt: OffsetDateTime,
-    val unreadCount: Long
+    val unreadCount: Long,
+    val lastMessageText: String?,
+    val lastMessageType: String?,
+    val lastMessageAt: OffsetDateTime?
 ) {
     companion object {
         fun from(row: DirectRoomRow) = DirectRoomResponse(
@@ -62,7 +73,10 @@ data class DirectRoomResponse(
             otherUserName = row.otherUserName,
             otherUserProfileImg = row.otherUserProfileImg,
             createdAt = row.createdAt,
-            unreadCount = row.unreadCount
+            unreadCount = row.unreadCount,
+            lastMessageText = row.lastMessageText,
+            lastMessageType = row.lastMessageType,
+            lastMessageAt = row.lastMessageAt
         )
     }
 }
