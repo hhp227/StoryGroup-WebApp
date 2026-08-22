@@ -12,6 +12,8 @@ enum class NotificationTargetType {
     POST, REPLY, MESSAGE, MEETING, GROUP
 }
 
+// post_*/group_*는 target 참조를 조회 시점에 역추적한 파생 컨텍스트(컬럼 아님) —
+// POST=직접, REPLY=user_replys 경유, GROUP=그룹 직결. 삭제/탈퇴로 못 푸는 참조는 null로 강등된다.
 data class Notification(
     val id: Long,
     val userId: Long,
@@ -19,7 +21,11 @@ data class Notification(
     val targetType: NotificationTargetType?,
     val targetId: Long?,
     val isRead: Boolean,
-    val createdAt: OffsetDateTime
+    val createdAt: OffsetDateTime,
+    val postId: Long?,
+    val postPreview: String?,
+    val groupId: Long?,
+    val groupName: String?
 )
 
 class NewNotificationRecord(
