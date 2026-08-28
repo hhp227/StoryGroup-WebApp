@@ -24,4 +24,8 @@ interface PushTokenMapper {
 
     @Select("SELECT token FROM user_push_tokens WHERE user_id = #{userId}")
     fun findTokensByUser(@Param("userId") userId: Long): List<String>
+
+    // 탈퇴 시 전 기기 푸시 중단(설계 §2)
+    @Delete("DELETE FROM user_push_tokens WHERE user_id = #{userId}")
+    fun deleteAllForUser(@Param("userId") userId: Long): Int
 }

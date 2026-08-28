@@ -37,6 +37,10 @@ class GlobalExceptionHandler {
     fun handleAlreadyFriend(ex: AlreadyFriendException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse("ALREADY_FRIEND", ex.message!!))
 
+    @ExceptionHandler(OwnedGroupsExistException::class)
+    fun handleOwnedGroupsExist(ex: OwnedGroupsExistException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse("OWNED_GROUPS_EXIST", ex.message!!))
+
     @ExceptionHandler(AlreadyReportedException::class)
     fun handleAlreadyReported(ex: AlreadyReportedException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse("ALREADY_REPORTED", ex.message!!))

@@ -70,3 +70,7 @@ class BlockNotFoundException : RuntimeException("차단 내역을 찾을 수 없
 
 // 차단 관계에서 막히는 상호작용(DM 방 생성/메시지 전송). 어느 쪽이 차단했는지는 노출하지 않는다.
 class BlockedUserException : RuntimeException("차단 관계인 사용자에게는 보낼 수 없습니다")
+
+// 회원탈퇴 시 소유하는 그룹이 존재하는 경우. 그룹을 먼저 삭제하고 탈퇴해야 한다(설계 §2).
+class OwnedGroupsExistException(groupNames: List<String>) :
+    RuntimeException("'${groupNames.joinToString(", ")}' 그룹을 삭제한 후 탈퇴할 수 있습니다")

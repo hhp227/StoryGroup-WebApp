@@ -49,4 +49,8 @@ interface UserFriendMapper {
     // 앱 DB 롤이 테이블 소유자라 RLS에 걸리지 않는다 — 세션 userId 설정 없이 리스너 스레드에서 호출된다.
     @Select("SELECT user_id FROM user_friends WHERE friend_id = #{friendId}")
     fun findFollowerIds(@Param("friendId") friendId: Long): List<Long>
+
+    // 탈퇴 시 친구 관계 양방향 정리(설계 §2)
+    @Delete("DELETE FROM user_friends WHERE user_id = #{userId} OR friend_id = #{userId}")
+    fun deleteAllInvolving(@Param("userId") userId: Long): Int
 }

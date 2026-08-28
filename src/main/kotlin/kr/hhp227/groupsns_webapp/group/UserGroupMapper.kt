@@ -69,4 +69,18 @@ interface UserGroupMapper {
         """
     )
     fun findMembers(groupId: Long): List<GroupMemberRow>
+
+    // 탈퇴 차단 판정(설계 §2) — 삭제된 그룹의 OWNER는 차단 사유가 아니다
+    @Select(
+        """
+        SELECT g.name FROM user_groups ug
+        JOIN groups g ON g.id = ug.group_id AND g.deleted_at IS NULL
+        WHERE ug.user_id = #{userId} AND ug.role = 'OWNER'
+        """
+    )
+    fun findOwnedGroupNames(@Param("userId") userId: Long): List<String>
+
+    // 탈퇴 시 전 그룹 이탈 — 멤버 목록·그룹 채팅 수신자 계산에서 빠진다
+    @Delete("DELETE FROM user_groups WHERE user_id = #{userId}")
+    fun deleteAllForUser(@Param("userId") userId: Long): Int
 }
