@@ -13,6 +13,10 @@ data class ChatBadgeSocketEvent(
     val chatRoomId: Long,
     val messageId: Long,
     val senderId: Long,
+    val senderName: String,
+    // 그룹방=그룹명, DM=null — 푸시 제목과 클라 채팅방 라우팅 title에 쓴다(설계 §3)
+    val roomName: String? = null,
+    val groupId: Long? = null,
     val text: String? = null,
     val attachmentType: String? = null,
     val createdAt: OffsetDateTime? = null

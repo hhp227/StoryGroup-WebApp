@@ -221,16 +221,24 @@ class ChatService(
             .asSequence()
             .map { it.userId }
             .filter { it != senderId && !userBlockMapper.exists(it, senderId) }
-            .forEach { eventPublisher.publishEvent(badgeEvent(it, message)) }
+            .forEach { eventPublisher.publishEvent(badgeEvent(it, message, groupId, group.name)) }
     }
 
     // 뱃지 수신자는 발신자를 차단한 사용자가 이미 걸러져 있어(그룹은 위 필터, DM은 전송 차단)
     // 미리보기 본문을 실어도 목록 REST(last_message_*)와 가시성이 어긋나지 않는다.
-    private fun badgeEvent(recipientId: Long, message: MessageResponse) = ChatBadgeSocketEvent(
+    private fun badgeEvent(
+        recipientId: Long,
+        message: MessageResponse,
+        groupId: Long? = null,
+        roomName: String? = null
+    ) = ChatBadgeSocketEvent(
         recipientId = recipientId,
         chatRoomId = message.chatRoomId,
         messageId = message.id,
         senderId = message.userId,
+        senderName = message.authorName,
+        roomName = roomName,
+        groupId = groupId,
         text = message.text,
         attachmentType = message.attachment?.contentType,
         createdAt = message.createdAt
