@@ -20,8 +20,14 @@ class FirebaseConfig {
 
     @Bean
     fun fcmSender(): FcmSender = try {
+        // Cloud Run은 GOOGLE_CLOUD_PROJECT를 자동 주입하지 않아 projectId 명시가 필수 —
+        // 없으면 첫 발송에서 "Project ID is required to access messaging service"로 죽는다(00093에서 실측).
+        val projectId = System.getenv("GOOGLE_CLOUD_PROJECT") ?: "application-bb416"
         val app = FirebaseApp.getApps().firstOrNull() ?: FirebaseApp.initializeApp(
-            FirebaseOptions.builder().setCredentials(GoogleCredentials.getApplicationDefault()).build()
+            FirebaseOptions.builder()
+                .setCredentials(GoogleCredentials.getApplicationDefault())
+                .setProjectId(projectId)
+                .build()
         )
         FirebaseFcmSender(FirebaseMessaging.getInstance(app))
     } catch (e: IOException) {
