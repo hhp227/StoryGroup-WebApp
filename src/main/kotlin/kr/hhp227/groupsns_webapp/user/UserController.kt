@@ -2,10 +2,12 @@ package kr.hhp227.groupsns_webapp.user
 
 import kr.hhp227.groupsns_webapp.security.UserPrincipal
 import kr.hhp227.groupsns_webapp.user.dto.ChangePasswordRequest
+import kr.hhp227.groupsns_webapp.user.dto.DeleteAccountRequest
 import kr.hhp227.groupsns_webapp.user.dto.ProfileResponse
 import kr.hhp227.groupsns_webapp.user.dto.UpdateProfileRequest
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -33,6 +35,15 @@ class UserController(private val userService: UserService) {
         @Valid @RequestBody request: ChangePasswordRequest
     ): ResponseEntity<Void> {
         userService.changePassword(principal.id, request)
+        return ResponseEntity.noContent().build()
+    }
+
+    @DeleteMapping
+    fun deleteAccount(
+        @AuthenticationPrincipal principal: UserPrincipal,
+        @Valid @RequestBody request: DeleteAccountRequest
+    ): ResponseEntity<Void> {
+        userService.deleteAccount(principal.id, request)
         return ResponseEntity.noContent().build()
     }
 }

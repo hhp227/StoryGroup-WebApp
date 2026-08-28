@@ -62,3 +62,7 @@ data class ChangePasswordRequest(
     // bcrypt는 72바이트를 넘는 입력을 자르므로 상한을 둠 (RegisterRequest와 동일)
     @field:NotBlank @field:Size(min = 8, max = 72) val newPassword: String
 )
+
+data class DeleteAccountRequest(
+    @field:NotBlank val password: String
+)
