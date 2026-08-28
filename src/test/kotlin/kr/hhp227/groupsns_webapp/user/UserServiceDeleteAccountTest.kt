@@ -43,13 +43,20 @@ class UserServiceDeleteAccountTest {
         Mockito.`when`(userMapper.findById(7)).thenReturn(user())
         Mockito.`when`(passwordEncoder.matches("wrong", "\$2a\$10\$hash")).thenReturn(false)
         assertThrows(IllegalArgumentException::class.java) { service.deleteAccount(7, DeleteAccountRequest("wrong")) }
+        // findOwnedGroupNames 이전에 던지므로 userGroupMapper도 완전 미상호작용
+        Mockito.verifyNoInteractions(refreshTokenMapper, pushTokenMapper, userFriendMapper, userGroupMapper)
         Mockito.verify(userMapper, Mockito.never()).anonymize(7)
+        Mockito.verify(userMapper, Mockito.never()).deleteOauthAccounts(7)
     }
 
     @Test
     fun `password_hash가 NULL이면 400 예외`() {
         Mockito.`when`(userMapper.findById(7)).thenReturn(user(passwordHash = null))
         assertThrows(IllegalArgumentException::class.java) { service.deleteAccount(7, DeleteAccountRequest("any")) }
+        // matches 호출 전에 던지므로 정리 6종 전부 미실행
+        Mockito.verifyNoInteractions(refreshTokenMapper, pushTokenMapper, userFriendMapper, userGroupMapper)
+        Mockito.verify(userMapper, Mockito.never()).anonymize(7)
+        Mockito.verify(userMapper, Mockito.never()).deleteOauthAccounts(7)
     }
 
     @Test
@@ -59,7 +66,12 @@ class UserServiceDeleteAccountTest {
         Mockito.`when`(userGroupMapper.findOwnedGroupNames(7)).thenReturn(listOf("우리모임", "스터디"))
         val ex = assertThrows(OwnedGroupsExistException::class.java) { service.deleteAccount(7, DeleteAccountRequest("pw")) }
         assertEquals("'우리모임, 스터디' 그룹을 삭제한 후 탈퇴할 수 있습니다", ex.message)
+        // userGroupMapper는 findOwnedGroupNames로 이미 상호작용했으므로 verifyNoInteractions 대상에서 제외하고
+        // deleteAllForUser 미호출만 개별 검증
+        Mockito.verifyNoInteractions(refreshTokenMapper, pushTokenMapper, userFriendMapper)
+        Mockito.verify(userGroupMapper, Mockito.never()).deleteAllForUser(7)
         Mockito.verify(userMapper, Mockito.never()).anonymize(7)
+        Mockito.verify(userMapper, Mockito.never()).deleteOauthAccounts(7)
     }
 
     @Test
