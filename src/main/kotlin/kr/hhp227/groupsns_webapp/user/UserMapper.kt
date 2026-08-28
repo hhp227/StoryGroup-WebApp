@@ -11,7 +11,7 @@ import org.apache.ibatis.annotations.Update
 interface UserMapper {
     @Select(
         """
-        SELECT id, name, email, password_hash, status, role, profile_img, bio, status_message, fcm_registration_id, created_at, deleted_at
+        SELECT id, name, email, password_hash, status, role, profile_img, bio, status_message, created_at, deleted_at
         FROM users
         WHERE email = #{email} AND deleted_at IS NULL
         """
@@ -20,7 +20,7 @@ interface UserMapper {
 
     @Select(
         """
-        SELECT id, name, email, password_hash, status, role, profile_img, bio, status_message, fcm_registration_id, created_at, deleted_at
+        SELECT id, name, email, password_hash, status, role, profile_img, bio, status_message, created_at, deleted_at
         FROM users
         WHERE id = #{id} AND deleted_at IS NULL
         """

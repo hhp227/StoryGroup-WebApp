@@ -17,7 +17,6 @@ data class User(
     val profileImg: String?,
     val bio: String?,
     val statusMessage: String?,
-    val fcmRegistrationId: String?,
     val createdAt: OffsetDateTime,
     val deletedAt: OffsetDateTime?
 )
