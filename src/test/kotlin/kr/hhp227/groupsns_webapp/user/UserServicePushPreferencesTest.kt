@@ -53,4 +53,12 @@ class UserServicePushPreferencesTest {
             service.updatePushPreferences(7, UpdatePushPreferencesRequest(chatEnabled = true, activityEnabled = true))
         }
     }
+
+    @Test
+    fun `갱신 - null 플래그는 IllegalArgumentException(직접 호출 방어)`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            service.updatePushPreferences(7, UpdatePushPreferencesRequest(chatEnabled = null, activityEnabled = true))
+        }
+        Mockito.verifyNoInteractions(userMapper)
+    }
 }

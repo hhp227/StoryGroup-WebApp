@@ -5,6 +5,7 @@ import kr.hhp227.groupsns_webapp.user.User
 import kr.hhp227.groupsns_webapp.user.UserRole
 import java.time.OffsetDateTime
 import javax.validation.constraints.NotBlank
+import javax.validation.constraints.NotNull
 import javax.validation.constraints.Size
 
 // 다른 사용자가 보는 공개 프로필 — ProfileResponse(본인용)와 달리 이메일은 내려주지 않는다.
@@ -78,8 +79,10 @@ data class PushPreferencesResponse(
     }
 }
 
-// 전체 교체 — 토글 하나를 바꿔도 클라가 현재 값 둘 다 보낸다. 누락 필드는 Jackson Kotlin 모듈이 400으로 거른다
+// 전체 교체 — 토글 하나를 바꿔도 클라가 현재 값 둘 다 보낸다.
+// Kotlin 원시 Boolean은 필드 누락 시 Jackson이 false로 조용히 채우므로(FAIL_ON_NULL_FOR_PRIMITIVES 미설정)
+// nullable + @NotNull로 받아 누락을 400(VALIDATION_ERROR)으로 거른다 — 한 필드만 보내 다른 종류를 꺼버리는 사고 방지.
 data class UpdatePushPreferencesRequest(
-    val chatEnabled: Boolean,
-    val activityEnabled: Boolean
+    @field:NotNull val chatEnabled: Boolean?,
+    @field:NotNull val activityEnabled: Boolean?
 )

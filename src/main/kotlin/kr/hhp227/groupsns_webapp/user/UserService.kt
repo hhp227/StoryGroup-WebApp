@@ -87,7 +87,10 @@ class UserService(
 
     @Transactional
     fun updatePushPreferences(userId: Long, request: UpdatePushPreferencesRequest) {
-        val updated = userMapper.updatePushPreferences(userId, request.chatEnabled, request.activityEnabled)
+        // @Valid가 컨트롤러에서 null을 이미 걸렀다 — 직접 호출 경로 대비 방어(IllegalArgumentException → 400)
+        val chatEnabled = requireNotNull(request.chatEnabled) { "chatEnabled는 필수입니다" }
+        val activityEnabled = requireNotNull(request.activityEnabled) { "activityEnabled는 필수입니다" }
+        val updated = userMapper.updatePushPreferences(userId, chatEnabled, activityEnabled)
         if (updated == 0) throw UserNotFoundException()
     }
 }
