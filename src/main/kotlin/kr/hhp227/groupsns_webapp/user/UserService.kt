@@ -10,7 +10,9 @@ import kr.hhp227.groupsns_webapp.user.dto.ChangePasswordRequest
 import kr.hhp227.groupsns_webapp.user.dto.DeleteAccountRequest
 import kr.hhp227.groupsns_webapp.user.dto.ProfileResponse
 import kr.hhp227.groupsns_webapp.user.dto.PublicProfileResponse
+import kr.hhp227.groupsns_webapp.user.dto.PushPreferencesResponse
 import kr.hhp227.groupsns_webapp.user.dto.UpdateProfileRequest
+import kr.hhp227.groupsns_webapp.user.dto.UpdatePushPreferencesRequest
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -77,5 +79,15 @@ class UserService(
         userGroupMapper.deleteAllForUser(userId)
         userFriendMapper.deleteAllInvolving(userId)
         userMapper.deleteOauthAccounts(userId)
+    }
+
+    // 푸시 종류별 on/off(설계 §2) — 계정 단위. 발송 게이트(PushBroadcaster)가 같은 매퍼로 읽는다
+    fun getPushPreferences(userId: Long): PushPreferencesResponse =
+        PushPreferencesResponse.from(userMapper.findPushPreferences(userId) ?: throw UserNotFoundException())
+
+    @Transactional
+    fun updatePushPreferences(userId: Long, request: UpdatePushPreferencesRequest) {
+        val updated = userMapper.updatePushPreferences(userId, request.chatEnabled, request.activityEnabled)
+        if (updated == 0) throw UserNotFoundException()
     }
 }
