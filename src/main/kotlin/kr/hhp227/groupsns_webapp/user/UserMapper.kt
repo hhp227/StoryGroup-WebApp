@@ -60,4 +60,28 @@ interface UserMapper {
     // OAuth 미구현이지만 테이블·행이 존재할 수 있어 개인정보 연결을 함께 끊는다(설계 §2)
     @Delete("DELETE FROM user_oauth_accounts WHERE user_id = #{userId}")
     fun deleteOauthAccounts(@Param("userId") userId: Long): Int
+
+    // 푸시 on/off 조회(설계 §1·§3) — 컬럼 순서가 PushPreferences 생성자 순서(chat, activity)와 같아야 한다(자동 매핑).
+    // 탈퇴(deleted_at) 유저는 null → 게이트가 발송을 스킵한다
+    @Select(
+        """
+        SELECT push_chat_enabled, push_activity_enabled
+        FROM users
+        WHERE id = #{userId} AND deleted_at IS NULL
+        """
+    )
+    fun findPushPreferences(@Param("userId") userId: Long): PushPreferences?
+
+    // 전체 교체(두 플래그 모두) — 영향 행 0이면 호출측이 UserNotFound로 본다
+    @Update(
+        """
+        UPDATE users SET push_chat_enabled = #{chatEnabled}, push_activity_enabled = #{activityEnabled}
+        WHERE id = #{userId} AND deleted_at IS NULL
+        """
+    )
+    fun updatePushPreferences(
+        @Param("userId") userId: Long,
+        @Param("chatEnabled") chatEnabled: Boolean,
+        @Param("activityEnabled") activityEnabled: Boolean
+    ): Int
 }

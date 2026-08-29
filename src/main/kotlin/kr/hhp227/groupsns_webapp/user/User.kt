@@ -37,3 +37,11 @@ class UserProfileUpdate(
     val bio: String?,
     val statusMessage: String?
 )
+
+// 푸시 종류별 on/off 행(설계 §1) — 발송 게이트(PushBroadcaster)와 설정 API만 읽는다.
+// User에 필드를 얹지 않는다: 소비처가 이 둘뿐이고, User SELECT 2곳·테스트 빌더까지 건드릴 이유가 없다.
+// MyBatis는 단일 생성자를 SELECT 컬럼 순서대로 채우므로 매퍼의 컬럼 순서 = (chat, activity)를 지킬 것.
+data class PushPreferences(
+    val chatEnabled: Boolean,
+    val activityEnabled: Boolean
+)
