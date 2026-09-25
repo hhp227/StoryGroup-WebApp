@@ -6,6 +6,9 @@ class InvalidCredentialsException : RuntimeException("이메일 또는 비밀번
 
 class InvalidRefreshTokenException : RuntimeException("유효하지 않거나 만료된 리프레시 토큰입니다")
 
+// 구글 ID 토큰 무효·만료·aud 불일치, Desktop 코드 교환 실패/미설정, 연결된 사용자가 탈퇴한 경우 공통 — 401
+class InvalidGoogleTokenException(message: String = "구글 인증에 실패했습니다") : RuntimeException(message)
+
 // 존재하지 않거나 요청자가 멤버가 아닌 그룹. 폐쇄형 그룹 특성상 비멤버에게는 존재 자체를 숨기기 위해
 // 권한 없음(403)이 아니라 404로 통일한다.
 class GroupNotFoundException : RuntimeException("그룹을 찾을 수 없습니다")

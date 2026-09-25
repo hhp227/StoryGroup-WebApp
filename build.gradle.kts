@@ -24,6 +24,8 @@ dependencies {
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("com.google.firebase:firebase-admin:9.3.0")
+	// 구글 로그인 ID 토큰 검증(GoogleIdTokenVerifier) — firebase-admin 전이 버전과 맞춤
+	implementation("com.google.api-client:google-api-client:2.4.0")
 	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 	implementation("org.mybatis.spring.boot:mybatis-spring-boot-starter:2.1.4")
 	implementation("org.flywaydb:flyway-core")
