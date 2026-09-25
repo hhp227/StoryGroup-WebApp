@@ -14,6 +14,11 @@ interface GoogleTokenVerifier {
     fun verify(idToken: String): GoogleIdentity
 }
 
+// 웹 커스텀 버튼(GIS 토큰 클라이언트 팝업)이 받은 액세스 토큰 — aud가 우리 클라이언트인지 구글에 확인한다
+interface GoogleAccessTokenVerifier {
+    fun verify(accessToken: String): GoogleIdentity
+}
+
 // Desktop 루프백 PKCE 코드 → id_token. client_secret이 앱에 들어가지 않도록 서버가 교환한다
 interface GoogleCodeExchanger {
     fun exchange(code: String, codeVerifier: String, redirectUri: String): String

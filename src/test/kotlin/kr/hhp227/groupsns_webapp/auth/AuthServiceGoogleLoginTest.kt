@@ -1,5 +1,6 @@
 package kr.hhp227.groupsns_webapp.auth
 
+import kr.hhp227.groupsns_webapp.auth.google.GoogleAccessTokenVerifier
 import kr.hhp227.groupsns_webapp.auth.google.GoogleCodeExchanger
 import kr.hhp227.groupsns_webapp.auth.google.GoogleIdentity
 import kr.hhp227.groupsns_webapp.auth.google.GoogleTokenVerifier
@@ -35,10 +36,11 @@ class AuthServiceGoogleLoginTest {
     private val oauthAccountMapper = Mockito.mock(OauthAccountMapper::class.java)
     private val googleTokenVerifier = Mockito.mock(GoogleTokenVerifier::class.java)
     private val googleCodeExchanger = Mockito.mock(GoogleCodeExchanger::class.java)
+    private val googleAccessTokenVerifier = Mockito.mock(GoogleAccessTokenVerifier::class.java)
     private val jwt = JwtTokenProvider("test-secret-test-secret-test-secret-1234", 1_800_000)
     private val service = AuthService(
         userMapper, refreshTokenMapper, loginHistoryMapper, groupMapper, userGroupMapper,
-        oauthAccountMapper, googleTokenVerifier, googleCodeExchanger,
+        oauthAccountMapper, googleTokenVerifier, googleCodeExchanger, googleAccessTokenVerifier,
         Mockito.mock(PasswordEncoder::class.java), jwt, 1_209_600_000
     )
     private val dummyRecord = NewUserRecord("", "", null)
@@ -152,5 +154,16 @@ class AuthServiceGoogleLoginTest {
         val tokens = service.loginWithGoogleCode("c", "v", "http://127.0.0.1:5000", null, null)
 
         assertEquals(7L, jwt.getUserId(tokens.accessToken))
+    }
+
+    @Test
+    fun `웹 액세스 토큰도 같은 계정 결정 경로를 탄다`() {
+        Mockito.`when`(googleAccessTokenVerifier.verify("at")).thenReturn(identity())
+        Mockito.`when`(userMapper.findByEmail("a@gmail.com")).thenReturn(user(id = 9))
+
+        val tokens = service.loginWithGoogleAccessToken("at", null, null)
+
+        assertEquals(9L, jwt.getUserId(tokens.accessToken))
+        Mockito.verify(oauthAccountMapper).insert(9, "GOOGLE", "g-123")
     }
 }

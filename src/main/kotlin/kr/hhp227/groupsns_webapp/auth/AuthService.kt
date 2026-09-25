@@ -1,6 +1,7 @@
 package kr.hhp227.groupsns_webapp.auth
 
 import kr.hhp227.groupsns_webapp.auth.dto.LoginRequest
+import kr.hhp227.groupsns_webapp.auth.google.GoogleAccessTokenVerifier
 import kr.hhp227.groupsns_webapp.auth.google.GoogleCodeExchanger
 import kr.hhp227.groupsns_webapp.auth.google.GoogleIdentity
 import kr.hhp227.groupsns_webapp.auth.google.GoogleTokenVerifier
@@ -39,6 +40,7 @@ class AuthService(
     private val oauthAccountMapper: OauthAccountMapper,
     private val googleTokenVerifier: GoogleTokenVerifier,
     private val googleCodeExchanger: GoogleCodeExchanger,
+    private val googleAccessTokenVerifier: GoogleAccessTokenVerifier,
     private val passwordEncoder: PasswordEncoder,
     private val jwtTokenProvider: JwtTokenProvider,
     @Value("\${jwt.refresh-token-expiration-ms}") private val refreshTokenExpirationMs: Long
@@ -74,6 +76,11 @@ class AuthService(
     @Transactional
     fun loginWithGoogleIdToken(idToken: String, ipAddress: String?, userAgent: String?): TokenResponse =
         loginWithGoogle(googleTokenVerifier.verify(idToken), ipAddress, userAgent)
+
+    // 웹 커스텀 버튼(GIS 토큰 클라이언트 팝업) — ID 토큰 대신 액세스 토큰을 받는다
+    @Transactional
+    fun loginWithGoogleAccessToken(accessToken: String, ipAddress: String?, userAgent: String?): TokenResponse =
+        loginWithGoogle(googleAccessTokenVerifier.verify(accessToken), ipAddress, userAgent)
 
     // Desktop 루프백 PKCE — 교환된 id_token도 같은 검증(aud 포함)을 거친다
     @Transactional

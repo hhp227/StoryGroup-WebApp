@@ -22,6 +22,11 @@ data class GoogleLoginRequest(
     @field:NotBlank val idToken: String
 )
 
+// 웹 커스텀 버튼(GIS 토큰 클라이언트 팝업)이 받은 액세스 토큰
+data class GoogleAccessTokenLoginRequest(
+    @field:NotBlank val accessToken: String
+)
+
 // Desktop 루프백 PKCE(설계 §2.1) — redirectUri는 인가 요청 때와 같아야 구글이 교환해 준다
 data class GoogleCodeLoginRequest(
     @field:NotBlank val code: String,
