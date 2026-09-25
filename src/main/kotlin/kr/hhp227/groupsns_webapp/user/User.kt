@@ -22,10 +22,12 @@ data class User(
 )
 
 // MyBatis useGeneratedKeys는 결과를 세팅할 mutable 프로퍼티가 필요해 User(불변)와 분리한 삽입 전용 홀더.
+// OAuth 전용 계정은 passwordHash NULL, 구글 picture를 profileImg로 받는다.
 class NewUserRecord(
     val name: String,
     val email: String,
-    val passwordHash: String
+    val passwordHash: String?,
+    val profileImg: String? = null
 ) {
     var id: Long = 0
 }

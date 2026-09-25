@@ -1,12 +1,16 @@
 package kr.hhp227.groupsns_webapp.auth
 
 import kr.hhp227.groupsns_webapp.auth.dto.LoginRequest
+import kr.hhp227.groupsns_webapp.auth.google.GoogleCodeExchanger
+import kr.hhp227.groupsns_webapp.auth.google.GoogleIdentity
+import kr.hhp227.groupsns_webapp.auth.google.GoogleTokenVerifier
 import kr.hhp227.groupsns_webapp.auth.dto.RefreshTokenRequest
 import kr.hhp227.groupsns_webapp.auth.dto.RegisterRequest
 import kr.hhp227.groupsns_webapp.auth.dto.TokenResponse
 import kr.hhp227.groupsns_webapp.auth.dto.UserSummaryResponse
 import kr.hhp227.groupsns_webapp.common.exception.DuplicateEmailException
 import kr.hhp227.groupsns_webapp.common.exception.InvalidCredentialsException
+import kr.hhp227.groupsns_webapp.common.exception.InvalidGoogleTokenException
 import kr.hhp227.groupsns_webapp.common.exception.InvalidRefreshTokenException
 import kr.hhp227.groupsns_webapp.group.GroupMapper
 import kr.hhp227.groupsns_webapp.group.GroupRole
@@ -32,6 +36,9 @@ class AuthService(
     private val loginHistoryMapper: LoginHistoryMapper,
     private val groupMapper: GroupMapper,
     private val userGroupMapper: UserGroupMapper,
+    private val oauthAccountMapper: OauthAccountMapper,
+    private val googleTokenVerifier: GoogleTokenVerifier,
+    private val googleCodeExchanger: GoogleCodeExchanger,
     private val passwordEncoder: PasswordEncoder,
     private val jwtTokenProvider: JwtTokenProvider,
     @Value("\${jwt.refresh-token-expiration-ms}") private val refreshTokenExpirationMs: Long
@@ -43,20 +50,9 @@ class AuthService(
         if (userMapper.existsByEmail(request.email)) {
             throw DuplicateEmailException()
         }
-        val record = NewUserRecord(
-            name = request.name,
-            email = request.email,
-            passwordHash = passwordEncoder.encode(request.password)
+        val user = createUser(
+            NewUserRecord(name = request.name, email = request.email, passwordHash = passwordEncoder.encode(request.password))
         )
-        userMapper.insert(record)
-        val user = userMapper.findById(record.id) ?: throw IllegalStateException("방금 생성한 유저를 찾을 수 없습니다")
-
-        // 라운지(전체 공개 피드)는 그룹 하나일 뿐이라 신규 가입자를 자동으로 멤버 가입시킨다.
-        // 마이그레이션 전이라 라운지가 아직 없는 경우(findLounge() == null)는 건너뛴다.
-        groupMapper.findLounge()?.let { lounge ->
-            userGroupMapper.insert(user.id, lounge.id, GroupRole.MEMBER)
-        }
-
         return UserSummaryResponse.from(user)
     }
 
@@ -74,6 +70,21 @@ class AuthService(
         }
         return issueTokens(user, userAgent)
     }
+
+    @Transactional
+    fun loginWithGoogleIdToken(idToken: String, ipAddress: String?, userAgent: String?): TokenResponse =
+        loginWithGoogle(googleTokenVerifier.verify(idToken), ipAddress, userAgent)
+
+    // Desktop 루프백 PKCE — 교환된 id_token도 같은 검증(aud 포함)을 거친다
+    @Transactional
+    fun loginWithGoogleCode(
+        code: String,
+        codeVerifier: String,
+        redirectUri: String,
+        ipAddress: String?,
+        userAgent: String?
+    ): TokenResponse =
+        loginWithGoogleIdToken(googleCodeExchanger.exchange(code, codeVerifier, redirectUri), ipAddress, userAgent)
 
     @Transactional
     fun refresh(request: RefreshTokenRequest, userAgent: String?): TokenResponse {
@@ -94,6 +105,44 @@ class AuthService(
         val tokenHash = hashToken(request.refreshToken)
         val stored = refreshTokenMapper.findByTokenHash(tokenHash) ?: return
         refreshTokenMapper.revoke(stored.id)
+    }
+
+    // 계정 결정(설계 §2.3): 기존 연결 → 검증된 이메일 자동 연결 → 신규 가입
+    private fun loginWithGoogle(identity: GoogleIdentity, ipAddress: String?, userAgent: String?): TokenResponse {
+        val linkedUserId = oauthAccountMapper.findUserId(OauthProvider.GOOGLE, identity.sub)
+        val user = if (linkedUserId != null) {
+            // 탈퇴 사용자는 findById가 걸러낸다(연결 행은 탈퇴 시 지워지지만 방어)
+            userMapper.findById(linkedUserId) ?: throw InvalidGoogleTokenException()
+        } else {
+            val existing = userMapper.findByEmail(identity.email)
+            when {
+                existing != null && identity.emailVerified -> existing
+                // 구글이 이메일 소유를 보증하지 않으면 남의 계정을 가져가는 경로가 된다
+                existing != null -> throw DuplicateEmailException()
+                else -> createUser(
+                    NewUserRecord(
+                        name = (identity.name?.takeIf { it.isNotBlank() } ?: identity.email.substringBefore('@')).take(50),
+                        email = identity.email,
+                        passwordHash = null,
+                        profileImg = identity.picture
+                    )
+                )
+            }.also { oauthAccountMapper.insert(it.id, OauthProvider.GOOGLE, identity.sub) }
+        }
+        loginHistoryMapper.insert(user.id, ipAddress, userAgent, true)
+        return issueTokens(user, userAgent)
+    }
+
+    private fun createUser(record: NewUserRecord): User {
+        userMapper.insert(record)
+        val user = userMapper.findById(record.id) ?: throw IllegalStateException("방금 생성한 유저를 찾을 수 없습니다")
+
+        // 라운지(전체 공개 피드)는 그룹 하나일 뿐이라 신규 가입자를 자동으로 멤버 가입시킨다.
+        // 마이그레이션 전이라 라운지가 아직 없는 경우(findLounge() == null)는 건너뛴다.
+        groupMapper.findLounge()?.let { lounge ->
+            userGroupMapper.insert(user.id, lounge.id, GroupRole.MEMBER)
+        }
+        return user
     }
 
     private fun issueTokens(user: User, deviceInfo: String?): TokenResponse {

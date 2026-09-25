@@ -31,7 +31,7 @@ interface UserMapper {
     @Select("SELECT EXISTS(SELECT 1 FROM users WHERE email = #{email})")
     fun existsByEmail(email: String): Boolean
 
-    @Insert("INSERT INTO users(name, email, password_hash) VALUES(#{name}, #{email}, #{passwordHash})")
+    @Insert("INSERT INTO users(name, email, password_hash, profile_img) VALUES(#{name}, #{email}, #{passwordHash}, #{profileImg})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     fun insert(record: NewUserRecord): Int
 
