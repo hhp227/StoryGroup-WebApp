@@ -3,6 +3,7 @@ package kr.hhp227.groupsns_webapp.auth.dto
 import kr.hhp227.groupsns_webapp.user.User
 import javax.validation.constraints.Email
 import javax.validation.constraints.NotBlank
+import javax.validation.constraints.Pattern
 import javax.validation.constraints.Size
 
 data class RegisterRequest(
@@ -15,6 +16,17 @@ data class RegisterRequest(
 data class LoginRequest(
     @field:NotBlank @field:Email val email: String,
     @field:NotBlank val password: String
+)
+
+data class GoogleLoginRequest(
+    @field:NotBlank val idToken: String
+)
+
+// Desktop 루프백 PKCE(설계 §2.1) — redirectUri는 인가 요청 때와 같아야 구글이 교환해 준다
+data class GoogleCodeLoginRequest(
+    @field:NotBlank val code: String,
+    @field:NotBlank val codeVerifier: String,
+    @field:NotBlank @field:Pattern(regexp = "^http://127\\.0\\.0\\.1:\\d{1,5}(/.*)?$") val redirectUri: String
 )
 
 data class RefreshTokenRequest(

@@ -1,5 +1,7 @@
 package kr.hhp227.groupsns_webapp.auth
 
+import kr.hhp227.groupsns_webapp.auth.dto.GoogleCodeLoginRequest
+import kr.hhp227.groupsns_webapp.auth.dto.GoogleLoginRequest
 import kr.hhp227.groupsns_webapp.auth.dto.LoginRequest
 import kr.hhp227.groupsns_webapp.auth.dto.RefreshTokenRequest
 import kr.hhp227.groupsns_webapp.auth.dto.RegisterRequest
@@ -25,6 +27,17 @@ class AuthController(private val authService: AuthService) {
     @PostMapping("/login")
     fun login(@Valid @RequestBody request: LoginRequest, httpRequest: HttpServletRequest): TokenResponse =
         authService.login(request, clientIp(httpRequest), httpRequest.getHeader("User-Agent"))
+
+    @PostMapping("/google")
+    fun loginWithGoogle(@Valid @RequestBody request: GoogleLoginRequest, httpRequest: HttpServletRequest): TokenResponse =
+        authService.loginWithGoogleIdToken(request.idToken, clientIp(httpRequest), httpRequest.getHeader("User-Agent"))
+
+    @PostMapping("/google/code")
+    fun loginWithGoogleCode(@Valid @RequestBody request: GoogleCodeLoginRequest, httpRequest: HttpServletRequest): TokenResponse =
+        authService.loginWithGoogleCode(
+            request.code, request.codeVerifier, request.redirectUri,
+            clientIp(httpRequest), httpRequest.getHeader("User-Agent")
+        )
 
     @PostMapping("/refresh")
     fun refresh(@Valid @RequestBody request: RefreshTokenRequest, httpRequest: HttpServletRequest): TokenResponse =
