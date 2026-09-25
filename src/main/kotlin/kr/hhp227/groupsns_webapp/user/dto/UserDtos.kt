@@ -37,7 +37,9 @@ data class ProfileResponse(
     val bio: String?,
     val statusMessage: String?,
     // 웹이 운영자 메뉴(사용자 신고 관리) 노출 여부를 결정하는 데 쓴다. 실제 인가는 서버가 다시 검사한다.
-    val isAdmin: Boolean
+    val isAdmin: Boolean,
+    // 비밀번호 없는(구글 전용) 계정이면 false — 클라가 비밀번호 변경 메뉴·탈퇴 확인 방식을 분기한다
+    val hasPassword: Boolean
 ) {
     companion object {
         fun from(user: User) = ProfileResponse(
@@ -47,7 +49,8 @@ data class ProfileResponse(
             profileImg = user.profileImg,
             bio = user.bio,
             statusMessage = user.statusMessage,
-            isAdmin = user.role == UserRole.ADMIN
+            isAdmin = user.role == UserRole.ADMIN,
+            hasPassword = user.passwordHash != null
         )
     }
 }
@@ -65,8 +68,10 @@ data class ChangePasswordRequest(
     @field:NotBlank @field:Size(min = 8, max = 72) val newPassword: String
 )
 
+// 비밀번호 계정은 password, 비밀번호 없는(구글 전용) 계정은 confirmText("탈퇴")로 본인 확인 — 검증은 서비스가 분기
 data class DeleteAccountRequest(
-    @field:NotBlank val password: String
+    val password: String? = null,
+    val confirmText: String? = null
 )
 
 // 푸시 종류별 on/off(설계 §2) — 필드명은 wire 계약(웹 api.ts·shared UserDtos.kt가 같은 이름을 쓴다)

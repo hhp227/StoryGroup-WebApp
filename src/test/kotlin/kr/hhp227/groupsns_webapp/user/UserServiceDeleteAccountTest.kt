@@ -50,13 +50,28 @@ class UserServiceDeleteAccountTest {
     }
 
     @Test
-    fun `password_hash가 NULL이면 400 예외`() {
+    fun `비밀번호 없는 계정은 확인 문구가 일치하면 탈퇴된다`() {
         Mockito.`when`(userMapper.findById(7)).thenReturn(user(passwordHash = null))
-        assertThrows(IllegalArgumentException::class.java) { service.deleteAccount(7, DeleteAccountRequest("any")) }
-        // matches 호출 전에 던지므로 정리 6종 전부 미실행
+        Mockito.`when`(userGroupMapper.findOwnedGroupNames(7)).thenReturn(emptyList())
+        service.deleteAccount(7, DeleteAccountRequest(confirmText = " 탈퇴 "))
+        Mockito.verify(userMapper).anonymize(7)
+        Mockito.verify(userMapper).deleteOauthAccounts(7)
+        Mockito.verifyNoInteractions(passwordEncoder)
+    }
+
+    @Test
+    fun `비밀번호 없는 계정은 확인 문구가 다르면 400 예외`() {
+        Mockito.`when`(userMapper.findById(7)).thenReturn(user(passwordHash = null))
+        assertThrows(IllegalArgumentException::class.java) { service.deleteAccount(7, DeleteAccountRequest(confirmText = "탈퇴할래")) }
         Mockito.verifyNoInteractions(refreshTokenMapper, pushTokenMapper, userFriendMapper, userGroupMapper)
         Mockito.verify(userMapper, Mockito.never()).anonymize(7)
-        Mockito.verify(userMapper, Mockito.never()).deleteOauthAccounts(7)
+    }
+
+    @Test
+    fun `비밀번호 계정에 password 없이 요청하면 400 예외`() {
+        Mockito.`when`(userMapper.findById(7)).thenReturn(user())
+        assertThrows(IllegalArgumentException::class.java) { service.deleteAccount(7, DeleteAccountRequest(confirmText = "탈퇴")) }
+        Mockito.verify(userMapper, Mockito.never()).anonymize(7)
     }
 
     @Test

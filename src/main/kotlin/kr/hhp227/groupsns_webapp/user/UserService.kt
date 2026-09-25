@@ -66,9 +66,14 @@ class UserService(
     fun deleteAccount(userId: Long, request: DeleteAccountRequest) {
         val user = userMapper.findById(userId) ?: throw UserNotFoundException()
         val hash = user.passwordHash
-            ?: throw IllegalArgumentException("비밀번호가 없는 계정은 탈퇴할 수 없습니다")
-        if (!passwordEncoder.matches(request.password, hash)) {
-            throw IllegalArgumentException("현재 비밀번호가 올바르지 않습니다")
+        if (hash != null) {
+            val password = request.password
+            if (password.isNullOrEmpty() || !passwordEncoder.matches(password, hash)) {
+                throw IllegalArgumentException("현재 비밀번호가 올바르지 않습니다")
+            }
+        } else if (request.confirmText?.trim() != DELETE_CONFIRM_TEXT) {
+            // 구글 전용 계정 — 비밀번호가 없어 확인 문구로 대체(액세스 토큰 인증은 이미 통과)
+            throw IllegalArgumentException("확인 문구가 일치하지 않습니다")
         }
         val ownedGroupNames = userGroupMapper.findOwnedGroupNames(userId)
         if (ownedGroupNames.isNotEmpty()) throw OwnedGroupsExistException(ownedGroupNames)
@@ -92,5 +97,10 @@ class UserService(
         val activityEnabled = requireNotNull(request.activityEnabled) { "activityEnabled는 필수입니다" }
         val updated = userMapper.updatePushPreferences(userId, chatEnabled, activityEnabled)
         if (updated == 0) throw UserNotFoundException()
+    }
+
+    companion object {
+        // 비밀번호 없는 계정의 탈퇴 확인 문구 — 클라 3종(웹·KMP·iOS)이 같은 값을 입력받는다
+        const val DELETE_CONFIRM_TEXT = "탈퇴"
     }
 }
