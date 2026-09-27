@@ -34,6 +34,21 @@ data class GoogleCodeLoginRequest(
     @field:NotBlank @field:Pattern(regexp = "^http://127\\.0\\.0\\.1:\\d{1,5}(/.*)?$") val redirectUri: String
 )
 
+// iOS 네이티브·웹 JS 팝업(설계 §2.1). 이름은 최초 인가 1회만 온다
+data class AppleLoginRequest(
+    @field:NotBlank val identityToken: String,
+    val authorizationCode: String? = null,
+    @field:NotBlank @field:Pattern(regexp = "^(IOS|WEB)$") val clientType: String,
+    val firstName: String? = null,
+    val lastName: String? = null
+)
+
+// Android·Desktop — 콜백이 준 60초 코드 + 앱만 아는 verifier
+data class AppleExchangeRequest(
+    @field:NotBlank val code: String,
+    @field:NotBlank val verifier: String
+)
+
 data class RefreshTokenRequest(
     @field:NotBlank val refreshToken: String
 )

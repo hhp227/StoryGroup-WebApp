@@ -1,5 +1,9 @@
 package kr.hhp227.groupsns_webapp.auth
 
+import kr.hhp227.groupsns_webapp.auth.apple.AppleCodeExchanger
+import kr.hhp227.groupsns_webapp.auth.apple.AppleLoginCodes
+import kr.hhp227.groupsns_webapp.auth.apple.AppleOAuthProperties
+import kr.hhp227.groupsns_webapp.auth.apple.AppleTokenVerifier
 import kr.hhp227.groupsns_webapp.auth.google.GoogleAccessTokenVerifier
 import kr.hhp227.groupsns_webapp.auth.google.GoogleCodeExchanger
 import kr.hhp227.groupsns_webapp.auth.google.GoogleIdentity
@@ -41,6 +45,8 @@ class AuthServiceGoogleLoginTest {
     private val service = AuthService(
         userMapper, refreshTokenMapper, loginHistoryMapper, groupMapper, userGroupMapper,
         oauthAccountMapper, googleTokenVerifier, googleCodeExchanger, googleAccessTokenVerifier,
+        Mockito.mock(AppleTokenVerifier::class.java), Mockito.mock(AppleCodeExchanger::class.java),
+        AppleOAuthProperties("", "", "", "", "", "", ""), AppleLoginCodes("test-secret-test-secret-test-secret-1234", 60_000),
         Mockito.mock(PasswordEncoder::class.java), jwt, 1_209_600_000
     )
     private val dummyRecord = NewUserRecord("", "", null)

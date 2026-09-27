@@ -1,5 +1,11 @@
 package kr.hhp227.groupsns_webapp.auth
 
+import kr.hhp227.groupsns_webapp.auth.apple.AppleCodeExchanger
+import kr.hhp227.groupsns_webapp.auth.apple.AppleLoginCodes
+import kr.hhp227.groupsns_webapp.auth.apple.AppleNames
+import kr.hhp227.groupsns_webapp.auth.apple.AppleOAuthProperties
+import kr.hhp227.groupsns_webapp.auth.apple.AppleTokenVerifier
+import kr.hhp227.groupsns_webapp.auth.dto.AppleLoginRequest
 import kr.hhp227.groupsns_webapp.auth.dto.LoginRequest
 import kr.hhp227.groupsns_webapp.auth.google.GoogleAccessTokenVerifier
 import kr.hhp227.groupsns_webapp.auth.google.GoogleCodeExchanger
@@ -10,6 +16,7 @@ import kr.hhp227.groupsns_webapp.auth.dto.RegisterRequest
 import kr.hhp227.groupsns_webapp.auth.dto.TokenResponse
 import kr.hhp227.groupsns_webapp.auth.dto.UserSummaryResponse
 import kr.hhp227.groupsns_webapp.common.exception.DuplicateEmailException
+import kr.hhp227.groupsns_webapp.common.exception.InvalidAppleTokenException
 import kr.hhp227.groupsns_webapp.common.exception.InvalidCredentialsException
 import kr.hhp227.groupsns_webapp.common.exception.InvalidGoogleTokenException
 import kr.hhp227.groupsns_webapp.common.exception.InvalidRefreshTokenException
@@ -41,6 +48,10 @@ class AuthService(
     private val googleTokenVerifier: GoogleTokenVerifier,
     private val googleCodeExchanger: GoogleCodeExchanger,
     private val googleAccessTokenVerifier: GoogleAccessTokenVerifier,
+    private val appleTokenVerifier: AppleTokenVerifier,
+    private val appleCodeExchanger: AppleCodeExchanger,
+    private val appleProperties: AppleOAuthProperties,
+    private val appleLoginCodes: AppleLoginCodes,
     private val passwordEncoder: PasswordEncoder,
     private val jwtTokenProvider: JwtTokenProvider,
     @Value("\${jwt.refresh-token-expiration-ms}") private val refreshTokenExpirationMs: Long
@@ -92,6 +103,16 @@ class AuthService(
         userAgent: String?
     ): TokenResponse =
         loginWithGoogleIdToken(googleCodeExchanger.exchange(code, codeVerifier, redirectUri), ipAddress, userAgent)
+
+    // iOS 네이티브·웹 팝업 — id_token 검증 → 계정 결정 → 코드 교환(폐기 대비) → 토큰 발급
+    @Transactional
+    fun loginWithApple(request: AppleLoginRequest, ipAddress: String?, userAgent: String?): TokenResponse {
+        // 인가 때 쓴 redirect_uri로 교환해야 한다 — iOS 네이티브는 redirect_uri가 없다
+        val redirectUri = if (request.clientType == "WEB") appleProperties.webRedirectUri.ifEmpty { null } else null
+        val user = resolveAppleUser(request.identityToken, request.authorizationCode, redirectUri, request.firstName, request.lastName)
+        loginHistoryMapper.insert(user.id, ipAddress, userAgent, true)
+        return issueTokens(user, userAgent)
+    }
 
     @Transactional
     fun refresh(request: RefreshTokenRequest, userAgent: String?): TokenResponse {
@@ -147,6 +168,31 @@ class AuthService(
                 )
             )
         }.also { oauthAccountMapper.insert(it.id, provider, identity.sub) }
+    }
+
+    // 애플 공통(iOS·웹·콜백): 계정 결정 + refresh token 저장. 교환 실패는 로그인을 막지 않는다(설계 §2.2)
+    private fun resolveAppleUser(
+        identityToken: String,
+        authorizationCode: String?,
+        redirectUri: String?,
+        firstName: String?,
+        lastName: String?
+    ): User {
+        val identity = appleTokenVerifier.verify(identityToken)
+        val user = resolveOauthUser(
+            OauthProvider.APPLE,
+            OauthIdentity(
+                sub = identity.sub,
+                email = identity.email,
+                emailVerified = identity.emailVerified,
+                name = AppleNames.displayName(firstName, lastName, identity.email, identity.isPrivateEmail),
+                picture = null
+            )
+        ) { InvalidAppleTokenException() }
+        authorizationCode?.takeIf { it.isNotBlank() }
+            ?.let { appleCodeExchanger.exchange(it, identity.audience, redirectUri) }
+            ?.let { oauthAccountMapper.updateToken(OauthProvider.APPLE, identity.sub, it, identity.audience) }
+        return user
     }
 
     private fun createUser(record: NewUserRecord): User {
