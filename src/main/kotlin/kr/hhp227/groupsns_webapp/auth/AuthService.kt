@@ -114,30 +114,39 @@ class AuthService(
         refreshTokenMapper.revoke(stored.id)
     }
 
-    // 계정 결정(설계 §2.3): 기존 연결 → 검증된 이메일 자동 연결 → 신규 가입
+    // 구글 3경로 공통 — 계정 결정 후 이력·토큰 발급
     private fun loginWithGoogle(identity: GoogleIdentity, ipAddress: String?, userAgent: String?): TokenResponse {
-        val linkedUserId = oauthAccountMapper.findUserId(OauthProvider.GOOGLE, identity.sub)
-        val user = if (linkedUserId != null) {
-            // 탈퇴 사용자는 findById가 걸러낸다(연결 행은 탈퇴 시 지워지지만 방어)
-            userMapper.findById(linkedUserId) ?: throw InvalidGoogleTokenException()
-        } else {
-            val existing = userMapper.findByEmail(identity.email)
-            when {
-                existing != null && identity.emailVerified -> existing
-                // 구글이 이메일 소유를 보증하지 않으면 남의 계정을 가져가는 경로가 된다
-                existing != null -> throw DuplicateEmailException()
-                else -> createUser(
-                    NewUserRecord(
-                        name = (identity.name?.takeIf { it.isNotBlank() } ?: identity.email.substringBefore('@')).take(50),
-                        email = identity.email,
-                        passwordHash = null,
-                        profileImg = identity.picture
-                    )
-                )
-            }.also { oauthAccountMapper.insert(it.id, OauthProvider.GOOGLE, identity.sub) }
-        }
+        val user = resolveOauthUser(
+            OauthProvider.GOOGLE,
+            OauthIdentity(identity.sub, identity.email, identity.emailVerified, identity.name, identity.picture)
+        ) { InvalidGoogleTokenException() }
         loginHistoryMapper.insert(user.id, ipAddress, userAgent, true)
         return issueTokens(user, userAgent)
+    }
+
+    // 계정 결정(구글 설계 §2.3, 애플 설계 §2.3): 기존 연결 → 검증된 이메일 자동 연결 → 신규 가입
+    private fun resolveOauthUser(provider: String, identity: OauthIdentity, invalid: () -> RuntimeException): User {
+        val linkedUserId = oauthAccountMapper.findUserId(provider, identity.sub)
+        if (linkedUserId != null) {
+            // 탈퇴 사용자는 findById가 걸러낸다(연결 행은 탈퇴 시 지워지지만 방어)
+            return userMapper.findById(linkedUserId) ?: throw invalid()
+        }
+        // 연결이 없으면 이메일이 있어야 연결·가입할 수 있다(users.email NOT NULL)
+        val email = identity.email ?: throw invalid()
+        val existing = userMapper.findByEmail(email)
+        return when {
+            existing != null && identity.emailVerified -> existing
+            // provider가 이메일 소유를 보증하지 않으면 남의 계정을 가져가는 경로가 된다
+            existing != null -> throw DuplicateEmailException()
+            else -> createUser(
+                NewUserRecord(
+                    name = (identity.name?.takeIf { it.isNotBlank() } ?: email.substringBefore('@')).take(50),
+                    email = email,
+                    passwordHash = null,
+                    profileImg = identity.picture
+                )
+            )
+        }.also { oauthAccountMapper.insert(it.id, provider, identity.sub) }
     }
 
     private fun createUser(record: NewUserRecord): User {

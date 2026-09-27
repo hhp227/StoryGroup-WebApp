@@ -9,6 +9,13 @@ class InvalidRefreshTokenException : RuntimeException("유효하지 않거나 �
 // 구글 ID 토큰 무효·만료·aud 불일치, Desktop 코드 교환 실패/미설정, 연결된 사용자가 탈퇴한 경우 공통 — 401
 class InvalidGoogleTokenException(message: String = "구글 인증에 실패했습니다") : RuntimeException(message)
 
+// 애플 id_token 무효·aud 불일치, 미설정, 1회용 코드 만료·verifier 불일치, 연결 사용자 탈퇴, email 없는 신규 — 401
+class InvalidAppleTokenException(message: String = "애플 인증에 실패했습니다") : RuntimeException(message) {
+    companion object {
+        const val NOT_CONFIGURED = "애플 로그인이 설정되지 않았습니다"
+    }
+}
+
 // 존재하지 않거나 요청자가 멤버가 아닌 그룹. 폐쇄형 그룹 특성상 비멤버에게는 존재 자체를 숨기기 위해
 // 권한 없음(403)이 아니라 404로 통일한다.
 class GroupNotFoundException : RuntimeException("그룹을 찾을 수 없습니다")

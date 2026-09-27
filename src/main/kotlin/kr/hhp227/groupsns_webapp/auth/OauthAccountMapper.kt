@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Select
 
 object OauthProvider {
     const val GOOGLE = "GOOGLE"
+    const val APPLE = "APPLE"
 }
 
 // user_oauth_accounts(V1) — (provider, provider_user_id) UNIQUE. 탈퇴 시 UserMapper.deleteOauthAccounts가 지운다

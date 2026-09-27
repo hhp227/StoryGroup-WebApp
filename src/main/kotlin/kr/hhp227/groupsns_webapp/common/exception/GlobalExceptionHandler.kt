@@ -68,6 +68,10 @@ class GlobalExceptionHandler {
     fun handleInvalidGoogleToken(ex: InvalidGoogleTokenException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ErrorResponse("INVALID_GOOGLE_TOKEN", ex.message!!))
 
+    @ExceptionHandler(InvalidAppleTokenException::class)
+    fun handleInvalidAppleToken(ex: InvalidAppleTokenException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ErrorResponse("INVALID_APPLE_TOKEN", ex.message!!))
+
     @ExceptionHandler(InvalidInviteException::class)
     fun handleInvalidInvite(ex: InvalidInviteException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ErrorResponse("INVALID_INVITE", ex.message!!))
