@@ -1,6 +1,9 @@
 package kr.hhp227.groupsns_webapp.user
 
+import kr.hhp227.groupsns_webapp.auth.OauthAccountMapper
+import kr.hhp227.groupsns_webapp.auth.OauthToken
 import kr.hhp227.groupsns_webapp.auth.RefreshTokenMapper
+import kr.hhp227.groupsns_webapp.auth.apple.AppleTokenRevoker
 import kr.hhp227.groupsns_webapp.common.exception.OwnedGroupsExistException
 import kr.hhp227.groupsns_webapp.friend.UserFriendMapper
 import kr.hhp227.groupsns_webapp.group.UserGroupMapper
@@ -22,7 +25,12 @@ class UserServiceDeleteAccountTest {
     private val pushTokenMapper = Mockito.mock(PushTokenMapper::class.java)
     private val userFriendMapper = Mockito.mock(UserFriendMapper::class.java)
     private val passwordEncoder = Mockito.mock(PasswordEncoder::class.java)
-    private val service = UserService(userMapper, userGroupMapper, refreshTokenMapper, pushTokenMapper, userFriendMapper, passwordEncoder)
+    private val oauthAccountMapper = Mockito.mock(OauthAccountMapper::class.java)
+    private val appleTokenRevoker = Mockito.mock(AppleTokenRevoker::class.java)
+    private val service = UserService(
+        userMapper, userGroupMapper, refreshTokenMapper, pushTokenMapper, userFriendMapper, passwordEncoder,
+        oauthAccountMapper, appleTokenRevoker
+    )
 
     private fun user(passwordHash: String? = "\$2a\$10\$hash") = User(
         id = 7,
@@ -44,7 +52,7 @@ class UserServiceDeleteAccountTest {
         Mockito.`when`(passwordEncoder.matches("wrong", "\$2a\$10\$hash")).thenReturn(false)
         assertThrows(IllegalArgumentException::class.java) { service.deleteAccount(7, DeleteAccountRequest("wrong")) }
         // findOwnedGroupNames 이전에 던지므로 userGroupMapper도 완전 미상호작용
-        Mockito.verifyNoInteractions(refreshTokenMapper, pushTokenMapper, userFriendMapper, userGroupMapper)
+        Mockito.verifyNoInteractions(refreshTokenMapper, pushTokenMapper, userFriendMapper, userGroupMapper, oauthAccountMapper, appleTokenRevoker)
         Mockito.verify(userMapper, Mockito.never()).anonymize(7)
         Mockito.verify(userMapper, Mockito.never()).deleteOauthAccounts(7)
     }
@@ -63,7 +71,7 @@ class UserServiceDeleteAccountTest {
     fun `비밀번호 없는 계정은 확인 문구가 다르면 400 예외`() {
         Mockito.`when`(userMapper.findById(7)).thenReturn(user(passwordHash = null))
         assertThrows(IllegalArgumentException::class.java) { service.deleteAccount(7, DeleteAccountRequest(confirmText = "탈퇴할래")) }
-        Mockito.verifyNoInteractions(refreshTokenMapper, pushTokenMapper, userFriendMapper, userGroupMapper)
+        Mockito.verifyNoInteractions(refreshTokenMapper, pushTokenMapper, userFriendMapper, userGroupMapper, oauthAccountMapper, appleTokenRevoker)
         Mockito.verify(userMapper, Mockito.never()).anonymize(7)
     }
 
@@ -101,5 +109,40 @@ class UserServiceDeleteAccountTest {
         Mockito.verify(userGroupMapper).deleteAllForUser(7)
         Mockito.verify(userFriendMapper).deleteAllInvolving(7)
         Mockito.verify(userMapper).deleteOauthAccounts(7)
+    }
+
+    @Test
+    fun `애플 연결이 있으면 탈퇴 후 refresh token을 폐기한다(트랜잭션 밖 단위 테스트는 즉시 실행)`() {
+        Mockito.`when`(userMapper.findById(7)).thenReturn(user(passwordHash = null))
+        Mockito.`when`(userGroupMapper.findOwnedGroupNames(7)).thenReturn(emptyList())
+        Mockito.`when`(oauthAccountMapper.findTokens(7, "APPLE")).thenReturn(listOf(OauthToken("rt", "svc")))
+
+        service.deleteAccount(7, DeleteAccountRequest(confirmText = "탈퇴"))
+
+        Mockito.verify(appleTokenRevoker).revoke("rt", "svc")
+        Mockito.verify(userMapper).deleteOauthAccounts(7)
+    }
+
+    @Test
+    fun `폐기가 실패해도 탈퇴는 성공한다`() {
+        Mockito.`when`(userMapper.findById(7)).thenReturn(user(passwordHash = null))
+        Mockito.`when`(userGroupMapper.findOwnedGroupNames(7)).thenReturn(emptyList())
+        Mockito.`when`(oauthAccountMapper.findTokens(7, "APPLE")).thenReturn(listOf(OauthToken("rt", "svc")))
+        Mockito.doThrow(IllegalStateException("apple down")).`when`(appleTokenRevoker).revoke("rt", "svc")
+
+        service.deleteAccount(7, DeleteAccountRequest(confirmText = "탈퇴"))
+
+        Mockito.verify(userMapper).anonymize(7)
+    }
+
+    @Test
+    fun `애플 연결이 없으면 폐기 호출 없음`() {
+        Mockito.`when`(userMapper.findById(7)).thenReturn(user(passwordHash = null))
+        Mockito.`when`(userGroupMapper.findOwnedGroupNames(7)).thenReturn(emptyList())
+        Mockito.`when`(oauthAccountMapper.findTokens(7, "APPLE")).thenReturn(emptyList())
+
+        service.deleteAccount(7, DeleteAccountRequest(confirmText = "탈퇴"))
+
+        Mockito.verifyNoInteractions(appleTokenRevoker)
     }
 }

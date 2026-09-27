@@ -1,6 +1,8 @@
 package kr.hhp227.groupsns_webapp.user
 
+import kr.hhp227.groupsns_webapp.auth.OauthAccountMapper
 import kr.hhp227.groupsns_webapp.auth.RefreshTokenMapper
+import kr.hhp227.groupsns_webapp.auth.apple.AppleTokenRevoker
 import kr.hhp227.groupsns_webapp.common.exception.UserNotFoundException
 import kr.hhp227.groupsns_webapp.friend.UserFriendMapper
 import kr.hhp227.groupsns_webapp.group.UserGroupMapper
@@ -22,7 +24,9 @@ class UserServicePushPreferencesTest {
         Mockito.mock(RefreshTokenMapper::class.java),
         Mockito.mock(PushTokenMapper::class.java),
         Mockito.mock(UserFriendMapper::class.java),
-        Mockito.mock(PasswordEncoder::class.java)
+        Mockito.mock(PasswordEncoder::class.java),
+        Mockito.mock(OauthAccountMapper::class.java),
+        Mockito.mock(AppleTokenRevoker::class.java)
     )
 
     @Test
