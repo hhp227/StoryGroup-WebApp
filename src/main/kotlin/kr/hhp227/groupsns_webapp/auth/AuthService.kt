@@ -1,5 +1,6 @@
 package kr.hhp227.groupsns_webapp.auth
 
+import kr.hhp227.groupsns_webapp.auth.apple.AppleCallbackState
 import kr.hhp227.groupsns_webapp.auth.apple.AppleCodeExchanger
 import kr.hhp227.groupsns_webapp.auth.apple.AppleLoginCodes
 import kr.hhp227.groupsns_webapp.auth.apple.AppleNames
@@ -110,6 +111,37 @@ class AuthService(
         // 인가 때 쓴 redirect_uri로 교환해야 한다 — iOS 네이티브는 redirect_uri가 없다
         val redirectUri = if (request.clientType == "WEB") appleProperties.webRedirectUri.ifEmpty { null } else null
         val user = resolveAppleUser(request.identityToken, request.authorizationCode, redirectUri, request.firstName, request.lastName)
+        loginHistoryMapper.insert(user.id, ipAddress, userAgent, true)
+        return issueTokens(user, userAgent)
+    }
+
+    // Android·Desktop form_post 콜백(설계 §2.4) — 결과는 항상 앱 복귀 URL(오류도 error=로 싣는다)
+    @Transactional
+    fun completeAppleCallback(
+        state: AppleCallbackState,
+        idToken: String?,
+        code: String?,
+        userJson: String?,
+        error: String?
+    ): String {
+        if (error != null) return state.redirectUrl(mapOf("error" to error))
+        if (idToken == null) return state.redirectUrl(mapOf("error" to "invalid_token"))
+        return try {
+            val (firstName, lastName) = AppleNames.fromUserJson(userJson)
+            val user = resolveAppleUser(idToken, code, appleProperties.callbackUrl, firstName, lastName)
+            state.redirectUrl(mapOf("code" to appleLoginCodes.issue(user.id, state.verifierHash)))
+        } catch (e: InvalidAppleTokenException) {
+            val reason = if (e.message == InvalidAppleTokenException.NOT_CONFIGURED) "not_configured" else "invalid_token"
+            state.redirectUrl(mapOf("error" to reason))
+        } catch (e: DuplicateEmailException) {
+            state.redirectUrl(mapOf("error" to "duplicate_email"))
+        }
+    }
+
+    // 앱 복귀 후 — 로그인 이력은 토큰을 실제로 받는 이 시점(앱의 IP·UA)에 남긴다
+    @Transactional
+    fun exchangeAppleCode(code: String, verifier: String, ipAddress: String?, userAgent: String?): TokenResponse {
+        val user = userMapper.findById(appleLoginCodes.redeem(code, verifier)) ?: throw InvalidAppleTokenException()
         loginHistoryMapper.insert(user.id, ipAddress, userAgent, true)
         return issueTokens(user, userAgent)
     }

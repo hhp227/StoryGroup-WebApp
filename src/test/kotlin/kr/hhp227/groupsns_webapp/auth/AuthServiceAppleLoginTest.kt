@@ -1,5 +1,6 @@
 package kr.hhp227.groupsns_webapp.auth
 
+import kr.hhp227.groupsns_webapp.auth.apple.AppleCallbackState
 import kr.hhp227.groupsns_webapp.auth.apple.AppleCodeExchanger
 import kr.hhp227.groupsns_webapp.auth.apple.AppleIdentity
 import kr.hhp227.groupsns_webapp.auth.apple.AppleLoginCodes
@@ -21,6 +22,7 @@ import kr.hhp227.groupsns_webapp.user.UserRole
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
@@ -177,5 +179,55 @@ class AuthServiceAppleLoginTest {
         Mockito.`when`(oauthAccountMapper.findUserId("APPLE", "ap-1")).thenReturn(7L)
         Mockito.`when`(userMapper.findById(7)).thenReturn(null)
         assertThrows(InvalidAppleTokenException::class.java) { service.loginWithApple(request(), null, null) }
+    }
+
+    private val androidState = AppleCallbackState(AppleCallbackState.Platform.ANDROID, null, "nn", AppleLoginCodes.hashVerifier("ver"))
+
+    @Test
+    fun `콜백 성공 — 코드를 담아 복귀하고, 그 코드+verifier로 토큰 교환`() {
+        Mockito.`when`(appleTokenVerifier.verify("idt")).thenReturn(identity(aud = "svc"))
+        Mockito.`when`(oauthAccountMapper.findUserId("APPLE", "ap-1")).thenReturn(7L)
+        Mockito.`when`(userMapper.findById(7)).thenReturn(user())
+
+        val url = service.completeAppleCallback(androidState, "idt", "c1", null, null)
+
+        assertTrue(url.startsWith("storygroup://auth/apple?code="))
+        assertTrue(url.endsWith("&nonce=nn"))
+        Mockito.verify(appleCodeExchanger).exchange("c1", "svc", "https://api.example/api/auth/apple/callback")
+        val code = url.substringAfter("code=").substringBefore("&")
+        val tokens = service.exchangeAppleCode(code, "ver", "2.2.2.2", "ua")
+        assertEquals(7L, jwt.getUserId(tokens.accessToken))
+        Mockito.verify(loginHistoryMapper).insert(7, "2.2.2.2", "ua", true)
+    }
+
+    @Test
+    fun `콜백 — 신규 가입은 user JSON 이름을 쓴다`() {
+        Mockito.`when`(appleTokenVerifier.verify("idt")).thenReturn(identity(aud = "svc"))
+        stubInsertAssigningId(9)
+        service.completeAppleCallback(androidState, "idt", "c1", """{"name":{"firstName":"John","lastName":"Smith"}}""", null)
+        assertEquals("John Smith", capturedInsert().name)
+    }
+
+    @Test
+    fun `콜백 — 애플 오류·검증 실패·미설정·이메일 충돌은 error로 복귀`() {
+        assertEquals(
+            "storygroup://auth/apple?error=user_cancelled_authorize&nonce=nn",
+            service.completeAppleCallback(androidState, null, null, null, "user_cancelled_authorize")
+        )
+        Mockito.`when`(appleTokenVerifier.verify("bad")).thenThrow(InvalidAppleTokenException())
+        assertTrue(service.completeAppleCallback(androidState, "bad", null, null, null).contains("error=invalid_token"))
+        Mockito.`when`(appleTokenVerifier.verify("nc")).thenThrow(InvalidAppleTokenException(InvalidAppleTokenException.NOT_CONFIGURED))
+        assertTrue(service.completeAppleCallback(androidState, "nc", null, null, null).contains("error=not_configured"))
+        Mockito.`when`(appleTokenVerifier.verify("dup")).thenReturn(identity(verified = false))
+        Mockito.`when`(userMapper.findByEmail("a@icloud.com")).thenReturn(user())
+        assertTrue(service.completeAppleCallback(androidState, "dup", null, null, null).contains("error=duplicate_email"))
+        assertTrue(service.completeAppleCallback(androidState, null, null, null, null).contains("error=invalid_token"))
+    }
+
+    @Test
+    fun `교환 — 탈퇴한 사용자면 401`() {
+        val code = AppleLoginCodes("test-secret-test-secret-test-secret-1234", 60_000).issue(7, AppleLoginCodes.hashVerifier("ver"))
+        Mockito.`when`(userMapper.findById(7)).thenReturn(null)
+        assertThrows(InvalidAppleTokenException::class.java) { service.exchangeAppleCode(code, "ver", null, null) }
     }
 }
